@@ -15,6 +15,7 @@ from email.mime.text import MIMEText
 import anthropic
 import markdown2
 from jinja2 import Environment, FileSystemLoader
+from markupsafe import Markup
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
@@ -66,7 +67,7 @@ def build_email_html(body_md: str, run_date: str) -> str:
 
     env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)), autoescape=True)
     template = env.get_template("email.html")
-    return template.render(run_date=run_date, body_html=body_html)
+    return template.render(run_date=run_date, body_html=Markup(body_html))
 
 
 # ── Gmail sending ─────────────────────────────────────────────────────────────
