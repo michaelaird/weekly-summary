@@ -9,13 +9,15 @@ import base64
 import json
 from datetime import datetime
 from pathlib import Path
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 import anthropic
 import markdown2
-import yagmail
 from jinja2 import Environment, FileSystemLoader
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -87,8 +89,16 @@ def get_credentials() -> Credentials:
 
 def send_email(subject: str, html_body: str):
     creds = get_credentials()
-    yag = yagmail.SMTP(oauth2_file=None, oauth2_credentials=creds, user=RECIPIENT_EMAIL)
-    yag.send(to=RECIPIENT_EMAIL, subject=subject, contents=html_body)
+    service = build("gmail", "v1", credentials=creds)
+    
+    message = MIMEMultipart("alternative")
+    message["to"] = RECIPIENT_EMAIL
+    message["from"] = RECIPIENT_EMAIL
+    message["subject"] = subject
+    message.attach(MIMEText(html_body, "html"))
+    
+    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+    service.users().messages().send(userId="me", body={"raw": raw}).execute()
     print(f"✅ Email sent to {RECIPIENT_EMAIL}")
 
 
