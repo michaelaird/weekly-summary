@@ -1,0 +1,22 @@
+Search the web for recent developments (past 7–10 days) across these three intersecting domains:
+1. Software architecture patterns (distributed systems, platform engineering, API design, event-driven, etc.)
+2. Canadian banking regulation (OSFI guidelines, Open Banking / Consumer-Driven Banking Act, FINTRAC, PCI-DSS in Canada)
+3. AI's impact on developer teams (agentic coding, AI-assisted architecture, shadow AI, model governance in regulated environments)
+
+Look for signals at the INTERSECTIONS — not just within each domain individually.
+For example: how might a new OSFI guidance note affect how teams adopt AI coding agents?
+Or how is an emerging architecture pattern being shaped by open banking requirements?
+
+Generate exactly 3 weak signals. For each signal use this format:
+
+## Signal [N]: [Punchy 6–10 word title]
+
+**What's happening:** [2–3 sentences describing the development. Be specific — name the regulation, pattern, tool, or trend.]
+
+**Why it's weak:** [1–2 sentences on why this hasn't hit mainstream radar yet.]
+
+**So what (for a Solution Architect at a Canadian bank):** [2–3 sentences of concrete implication — decisions to make, risks to watch, or opportunities to explore.]
+
+---
+
+End with a one-paragraph "Architect's Lens" synthesizing a meta-pattern across all three signals.
