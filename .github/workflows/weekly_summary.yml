@@ -35,3 +35,11 @@ jobs:
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
           CC_EMAIL: ${{ secrets.CC_EMAIL }}
         run: python weekly_summary.py
+
+      - name: Commit updated signal history
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "Weekly Summary Bot"
+          git add SIGNAL_HISTORY.md
+          git commit -m "Update signal history: $(date +%Y-%m-%d)" || echo "No changes to commit"
+          git push
