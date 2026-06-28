@@ -41,10 +41,21 @@ def load_prompt(filename: str) -> str:
     return (PROMPTS_DIR / filename).read_text(encoding="utf-8").strip()
 
 
+def load_signal_history() -> str:
+    """Load previous signal history to avoid repetition."""
+    history_file = BASE_DIR / "SIGNAL_HISTORY.md"
+    if history_file.exists():
+        return history_file.read_text(encoding="utf-8").strip()
+    return "(No history yet — first week of scanning.)"
+
+
 # ── Claude API call ────────────────────────────────────────────────────────────
 
 def generate_summary() -> str:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    
+    # Load previous signals to avoid repetition
+    history = load_signal_history()
 
     response = client.messages.create(
         model="claude-sonnet-4-6",
@@ -55,7 +66,7 @@ def generate_summary() -> str:
             "name": "web_search",
             "max_uses": 8,
         }],
-        messages=[{"role": "user", "content": load_prompt("user.txt")}],
+        messages=[{"role": "user", "content": load_prompt("user.txt").format(previous_signals=history)}],
     )
 
     text_parts = [block.text for block in response.content if block.type == "text"]
@@ -134,6 +145,11 @@ def main():
 
     print("Sending via Gmail API...")
     send_email(subject, html)
+    
+    # Optionally: extract signal titles and update history
+    # (Manual update recommended to ensure accuracy)
+    print("\n💡 Remember to update SIGNAL_HISTORY.md with this week's signal titles!")
+    print("   This helps Claude avoid repetition next week.")
 
 
 if __name__ == "__main__":
