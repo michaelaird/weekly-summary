@@ -92,8 +92,14 @@ def get_credentials() -> Credentials:
         client_secret=token_data.get("client_secret"),
         scopes=token_data.get("scopes", SCOPES),
     )
-    if creds.expired and creds.refresh_token:
-        creds.refresh(Request())
+    # Always refresh if we have a refresh_token (safer than checking expiry)
+    if creds.refresh_token:
+        try:
+            creds.refresh(Request())
+        except Exception as e:
+            print(f"⚠️  Token refresh failed: {e}")
+            print("Token may be expired or revoked. Re-run setup_gmail_token.py locally.")
+            raise
     return creds
 
 
