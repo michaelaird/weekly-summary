@@ -14,3 +14,9 @@
 - Signal 3: OSFI E-23's Clock Is Ticking — and Agentic AI Is Slipping Through the Inventory Gap
 - Signal 4: The CDBA's "Derived Data" Exclusion Creates a Hidden API Architecture Fault Line
 - Signal 5: Air-Gapped Agentic Coding Tools Are Becoming a Regulated-Industry Architecture Pattern
+## Week of June 28, 2026
+- Signal 1: "Context Debt" Is the Unacknowledged Liability in Bank AI Governance
+- Signal 2: FedRAMP AI Agent Boundaries Are Setting a Compliance Template Canada Will Be Forced to Mirror
+- Signal 3: Runtime Verification for Coding Agents Is Creating a New Category of Ungoverned Test Infrastructure
+- Signal 4: Binance's MiCA Exit Quietly Validates Canada's "Licensed Entity" Approach — With Unintended Consequences
+- Signal 5: SLM Deployment Is Quietly Undermining Banks' Centralized AI Governance Models
