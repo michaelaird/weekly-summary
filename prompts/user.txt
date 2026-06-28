@@ -1,17 +1,23 @@
-Search the web for recent developments (past 7–10 days) across these three intersecting domains:
-1. Software architecture patterns (distributed systems, platform engineering, API design, event-driven, etc.)
-2. Canadian banking regulation (OSFI guidelines, Open Banking / Consumer-Driven Banking Act, FINTRAC, PCI-DSS in Canada)
-3. AI's impact on developer teams (agentic coding, AI-assisted architecture, shadow AI, model governance in regulated environments)
+Search the web for recent developments (past 7–10 days) across these three domains:
+1. Software architecture patterns (distributed systems, platform engineering, API design, event-driven, microservices, etc.)
+2. Canadian banking regulation (OSFI guidelines, Open Banking / Consumer-Driven Banking Act, FINTRAC, PCI-DSS in Canada, privacy, etc.)
+3. AI's impact on developer teams (agentic coding, AI-assisted architecture, shadow AI, model governance in regulated environments, etc.)
 
-Look for signals at the INTERSECTIONS — not just within each domain individually.
-For example: how might a new OSFI guidance note affect how teams adopt AI coding agents?
-Or how is an emerging architecture pattern being shaped by open banking requirements?
+Look for signals that intersect AT LEAST TWO of these domains. The more intersections, the better.
+Examples:
+- A new OSFI guidance note affecting how teams adopt AI agents (regulation + AI)
+- An emerging architecture pattern shaped by open banking requirements (architecture + regulation)
+- AI tools that change how architects approach distributed system design (architecture + AI)
+- Regulatory concerns about shadow AI in development workflows (regulation + AI)
+
+You are NOT required to find intersections of all three domains — two is plenty. Cast a wider net.
 
 AVOID REPETITION: The signals below have been covered in recent weeks. Actively deprioritize these topics:
 
 {{ previous_signals }}
 
-Generate exactly 3 weak signals. For each signal use this format:
+Generate between 4–5 weak signals (aim for 5 if you can find them, but 4 is acceptable if quality is higher). 
+For each signal use this format:
 
 ## 🔴 Signal [N]: [Punchy 6–10 word title]
 
@@ -23,4 +29,4 @@ Generate exactly 3 weak signals. For each signal use this format:
 
 ---
 
-End with a one-paragraph section titled "🧠 Architect's Lens" that synthesizes a meta-pattern connecting all three signals.
+End with a one-paragraph section titled "🧠 Architect's Lens" that synthesizes a meta-pattern connecting the signals you found.
