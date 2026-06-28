@@ -91,12 +91,12 @@ def generate_summary() -> str:
 
     response = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=2000,
+        max_tokens=2500,
         system=load_prompt("system.txt"),
         tools=[{
             "type": "web_search_20250305",
             "name": "web_search",
-            "max_uses": 8,
+            "max_uses": 10,
         }],
         messages=[{"role": "user", "content": load_prompt("user.txt").format(previous_signals=history)}],
     )
