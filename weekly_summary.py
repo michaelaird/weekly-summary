@@ -7,6 +7,7 @@ Uses Claude with native web search, sends results via Gmail API.
 import os
 import base64
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from email.mime.multipart import MIMEMultipart
@@ -23,7 +24,8 @@ from googleapiclient.discovery import build
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-RECIPIENT_EMAIL  = os.environ["RECIPIENT_EMAIL"]      # your Gmail address
+TO_EMAIL         = os.environ["TO_EMAIL"]             # primary recipient
+CC_EMAIL         = os.environ["CC_EMAIL"]             # CC recipient (for testing)
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 GOOGLE_TOKEN_JSON = os.environ["GOOGLE_TOKEN_JSON"]   # base64-encoded token.json
 
@@ -63,7 +65,14 @@ def generate_summary() -> str:
 # ── Email rendering ───────────────────────────────────────────────────────────
 
 def build_email_html(body_md: str, run_date: str) -> str:
-    body_html = markdown2.markdown(body_md, extras=["fenced-code-blocks", "tables"])
+    body_html = markdown2.markdown(
+        body_md, 
+        extras=["fenced-code-blocks", "tables", "strike"]
+    )
+    
+    # Clean up excessive whitespace/newlines that markdown2 sometimes adds
+    body_html = re.sub(r'>\s+<', '><', body_html)  # Remove whitespace between tags
+    body_html = re.sub(r'\n\n+', '\n', body_html)   # Collapse multiple newlines
 
     env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)), autoescape=True)
     template = env.get_template("email.html")
@@ -93,14 +102,15 @@ def send_email(subject: str, html_body: str):
     service = build("gmail", "v1", credentials=creds)
     
     message = MIMEMultipart("alternative")
-    message["to"] = RECIPIENT_EMAIL
-    message["from"] = RECIPIENT_EMAIL
+    message["to"] = TO_EMAIL
+    message["from"] = TO_EMAIL
+    message["cc"] = CC_EMAIL
     message["subject"] = subject
     message.attach(MIMEText(html_body, "html"))
     
     raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
     service.users().messages().send(userId="me", body={"raw": raw}).execute()
-    print(f"✅ Email sent to {RECIPIENT_EMAIL}")
+    print(f"✅ Email sent to {TO_EMAIL}, CC'd to {CC_EMAIL}")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
