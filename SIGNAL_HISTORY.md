@@ -8,3 +8,9 @@
 - Signal 1: Agentic AI Coding Tools Are Invisibly Spawning Unregistered "Models" Under OSFI E-23
 - Signal 2: Canada's CDBA Has a "Standards Body" Vacuum — and Banks Are Building APIs Blind
 - Signal 3: FINTRAC's New AMP Regime Creates a "Demonstrable Effectiveness" Test That AI Systems Can't Yet Pass
+## Week of June 28, 2026
+- Signal 1: The CDBA Regulations Drop — and the Technical Standards Body Still Doesn't Exist
+- Signal 2: MCP Is Arriving in Banking — and the NSA Just Flagged It as a Systemic Attack Surface
+- Signal 3: OSFI E-23's Clock Is Ticking — and Agentic AI Is Slipping Through the Inventory Gap
+- Signal 4: The CDBA's "Derived Data" Exclusion Creates a Hidden API Architecture Fault Line
+- Signal 5: Air-Gapped Agentic Coding Tools Are Becoming a Regulated-Industry Architecture Pattern
