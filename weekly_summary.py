@@ -49,6 +49,38 @@ def load_signal_history() -> str:
     return "(No history yet — first week of scanning.)"
 
 
+def extract_signal_titles(summary_md: str) -> list[str]:
+    """Extract signal titles from the markdown summary."""
+    import re
+    # Match patterns like "## 🔴 Signal 1: Title here" or "## Signal 1: Title here"
+    pattern = r'^##\s*[^:]*Signal\s+\d+:\s*(.+)$'
+    matches = re.findall(pattern, summary_md, re.MULTILINE)
+    return [title.strip() for title in matches]
+
+
+def update_signal_history(run_date: str, signal_titles: list[str]) -> None:
+    """Append this week's signals to SIGNAL_HISTORY.md."""
+    history_file = BASE_DIR / "SIGNAL_HISTORY.md"
+    
+    # Format the new entry
+    new_entry = f"\n## Week of {run_date}\n"
+    for i, title in enumerate(signal_titles, 1):
+        new_entry += f"- Signal {i}: {title}\n"
+    
+    # Read existing history
+    if history_file.exists():
+        existing = history_file.read_text(encoding="utf-8")
+    else:
+        existing = "# Weak Signal History\n# Keep the past 4–8 weeks of signals here to help Claude avoid repetition.\n"
+    
+    # Append new entry
+    updated = existing.rstrip() + new_entry
+    
+    # Write back
+    history_file.write_text(updated, encoding="utf-8")
+    print(f"✅ Updated SIGNAL_HISTORY.md with {len(signal_titles)} new signals")
+
+
 # ── Claude API call ────────────────────────────────────────────────────────────
 
 def generate_summary() -> str:
@@ -146,10 +178,13 @@ def main():
     print("Sending via Gmail API...")
     send_email(subject, html)
     
-    # Optionally: extract signal titles and update history
-    # (Manual update recommended to ensure accuracy)
-    print("\n💡 Remember to update SIGNAL_HISTORY.md with this week's signal titles!")
-    print("   This helps Claude avoid repetition next week.")
+    # Extract and save signal titles to history for next week
+    print("Updating signal history...")
+    signal_titles = extract_signal_titles(summary_md)
+    if signal_titles:
+        update_signal_history(run_date, signal_titles)
+    else:
+        print("⚠️  Could not extract signal titles from summary")
 
 
 if __name__ == "__main__":
