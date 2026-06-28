@@ -1,14 +1,17 @@
 Search the web for recent developments (past 7–10 days) across these three intersecting domains:
 1. Software architecture patterns (distributed systems, platform engineering, API design, event-driven, etc.)
-2. Canadian banking regulation ( Open Banking / Consumer-Driven Banking Act, FINTRAC, PCI-DSS, OSFI guidelines, in Canada)
+2. Canadian banking regulation (OSFI guidelines, Open Banking / Consumer-Driven Banking Act, FINTRAC, PCI-DSS in Canada)
 3. AI's impact on developer teams (agentic coding, AI-assisted architecture, shadow AI, model governance in regulated environments)
-4. Recent trends in the broader tech ecosystem that could influence any of the above (e.g. new tools, frameworks, or shifts in developer culture)
 
 Look for signals at the INTERSECTIONS — not just within each domain individually.
 For example: how might a new OSFI guidance note affect how teams adopt AI coding agents?
 Or how is an emerging architecture pattern being shaped by open banking requirements?
 
-Generate 3-5 weak signals. For each signal use this format:
+AVOID REPETITION: The signals below have been covered in recent weeks. Actively deprioritize these topics:
+
+{{ previous_signals }}
+
+Generate exactly 3 weak signals. For each signal use this format:
 
 ## 🔴 Signal [N]: [Punchy 6–10 word title]
 
