@@ -20,3 +20,9 @@
 - Signal 3: Runtime Verification for Coding Agents Is Creating a New Category of Ungoverned Test Infrastructure
 - Signal 4: Binance's MiCA Exit Quietly Validates Canada's "Licensed Entity" Approach — With Unintended Consequences
 - Signal 5: SLM Deployment Is Quietly Undermining Banks' Centralized AI Governance Models
+## Week of July 03, 2026
+- Signal 1: AI's "Interaction Model" Abstraction Is Quietly Redefining What a Financial Service *Is*
+- Signal 2: IMF Tokenisation Warning Implies a "Risk Migration" That Breaks Canadian Prudential Architecture Assumptions
+- Signal 3: Enterprise AI Model Routing Is Emerging as a Hidden Compliance Control Plane
+- Signal 4: FedCM's Arrival Threatens the Identity Architecture Underpinning Bank-Fintech Partnerships
+- Signal 5: Open Source Communities Banning AI Agents Is a Leading Indicator of Regulated-Sector Pushback
