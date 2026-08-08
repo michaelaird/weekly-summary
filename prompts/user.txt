@@ -30,3 +30,18 @@ For each signal use this format:
 ---
 
 End with a one-paragraph section titled "🧠 Architect's Lens" that synthesizes a meta-pattern connecting the signals you found.
+
+ADDITIONAL REQUIREMENT — LINKS & SOURCES:
+- For each signal, include a short "**Sources:**" subsection listing the full URLs (one per line) for any newsletter items or external stories you cite. Prefer the original newsletter article URLs contained in the feed content above.
+- When you reference a specific newsletter or item in the **What's happening** section, include the article's URL in parentheses immediately after the mention when possible.
+- You may include up to 3 supplemental external links (news reports, vendor docs, regulatory notices) that expand or corroborate the signal.
+
+Example signal ending:
+
+**💡 So what (for a Solution Architect at a Canadian bank):** ...
+
+**Sources:**
+- https://feed.example/article-123
+- https://another.source/report
+
+---
