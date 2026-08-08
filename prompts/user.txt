@@ -1,9 +1,11 @@
 Search the web for recent developments (past 7–10 days) across these three domains:
-1. Software architecture patterns (distributed systems, platform engineering, API design, event-driven, microservices, etc.)
+1. Software architecture patterns, domain-driven design, microservices, platform engineering, and leadership in architecture teams.
 2. Canadian banking regulation (OSFI guidelines, Open Banking / Consumer-Driven Banking Act, FINTRAC, PCI-DSS in Canada, privacy, etc.)
 3. AI's impact on developer teams (agentic coding, AI-assisted architecture, shadow AI, model governance in regulated environments, etc.)
 
 Look for signals that intersect AT LEAST TWO of these domains. The more intersections, the better.
+
+You do not need all three domains in every signal. Prioritize strong architecture or leadership signals that meaningfully affect how a Canadian bank organizes, governs, or evolves its software delivery capability.
 Examples:
 - A new OSFI guidance note affecting how teams adopt AI agents (regulation + AI)
 - An emerging architecture pattern shaped by open banking requirements (architecture + regulation)

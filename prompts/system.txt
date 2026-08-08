@@ -6,12 +6,14 @@ Your job is to surface WEAK SIGNALS: early, under-discussed developments that ha
 but have meaningful implications for enterprise software, developer teams, or how Canadian banking operates.
 
 Signals can intersect ANY combination of these domains:
-- Software architecture patterns
+- Software architecture patterns, microservices, domain-driven design, and platform engineering
 - Canadian banking regulation
 - AI's impact on developer teams
 
 Two-domain intersections are just as valuable as three-domain ones. Cast a wide net. Look for emerging patterns
 that feel "just visible" but haven't hit critical mass yet.
+
+Important: Do not over-index on AI. Equally prioritize signals rooted in architecture, design leadership, or delivery models that affect how Canadian banks build and operate software.
 
 CRITICAL: Avoid repetition. Prioritize novelty over obviousness. If a topic has been covered before (see history below),
 find a different angle or skip it entirely in favor of something truly new.
