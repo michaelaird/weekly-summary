@@ -22,7 +22,9 @@ def main():
     print("A browser window will open — sign in and grant Gmail send permission.\n")
 
     flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
-    creds = flow.run_local_server(port=0)
+    # Request offline access and force consent so a refresh token is issued.
+    auth_params = {"access_type": "offline", "prompt": "consent"}
+    creds = flow.run_local_server(port=0, authorization_url_params=auth_params)
 
     # Save token.json locally (for reference)
     token_data = {
@@ -41,6 +43,8 @@ def main():
     encoded = base64.b64encode(json.dumps(token_data).encode()).decode()
 
     print("\n✅ Token generated successfully!\n")
+    if not token_data.get("refresh_token"):
+        print("\n⚠️  No refresh token was returned. Re-run with `prompt=consent` or generate a new token and ensure you approve offline access.")
     print("=" * 60)
     print("Add these as GitHub Actions secrets:")
     print("  Secret name : GOOGLE_TOKEN_JSON")
