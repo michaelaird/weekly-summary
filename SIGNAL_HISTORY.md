@@ -32,3 +32,9 @@
 - Signal 3: Supply Chain Provenance Attestations Are Being Weaponized — AI Code Makes This Catastrophically Worse
 - Signal 4: OpenAI's Astra Delay Quietly Reveals a "Capability Ceiling" Governance Model Nobody Has Operationalized
 - Signal 5: Knowledge Distillation at Scale Is Creating a Hidden Model Lineage Problem in Regulated Environments
+## Week of August 08, 2026
+- Signal 1: Agent "Skills" Portability Is Creating Uncontrolled Shadow Capability Libraries
+- Signal 2: OpenAI's Astra "Rogue Agent" Incident Is a Threat Model Banks Haven't Stress-Tested
+- Signal 3: Read/Write Path Separation Is the Unacknowledged Architecture Requirement for AI Audit Trails
+- Signal 4: Meta's Cheap Coding Agent Has a Data-Cost Clause Banks Cannot Accept
+- Signal 5: EBA's ESG Data Quality Improvements Are a Template for AI Model Data Governance Canada Will Be Pressured to Mirror
