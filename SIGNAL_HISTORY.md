@@ -44,3 +44,9 @@
 - Signal 3: The Full LLM Threat Model Is Arriving — and Banks' AppSec Teams Are Structured to Miss Half of It
 - Signal 4: Stablecoin Infrastructure Is Arriving in B2B Payments — and Canada's AML Perimeter Isn't Ready
 - Signal 5: "Big Model Teaches Small Model" Is Creating an Unexamined Model Lineage Problem in Production
+## Week of August 08, 2026
+- Signal 1: Five AI Labs Just Created a Plugin Standard — and It's a Vendor Lock-In Trap Banks Will Stumble Into
+- Signal 2: G7's Cross-Border Cyber Exercise Quietly Tests "Operational Continuity" for Banks — and Canada Was in the Room
+- Signal 3: KubeVirt + EVPN Is Quietly Solving a Workload Portability Problem That Bank Private Cloud Teams Haven't Named Yet
+- Signal 4: U.S. Data Brokers Selling Frontier Datasets to Foreign Labs — Canada's Privacy Perimeter Is the Next Battlefield
+- Signal 5: ByteDance's 10-Trillion Parameter Model Is Quietly Rewriting the Inference Cost Architecture Assumptions Banks Made 18 Months Ago
