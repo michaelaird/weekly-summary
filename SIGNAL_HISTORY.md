@@ -26,3 +26,9 @@
 - Signal 3: Enterprise AI Model Routing Is Emerging as a Hidden Compliance Control Plane
 - Signal 4: FedCM's Arrival Threatens the Identity Architecture Underpinning Bank-Fintech Partnerships
 - Signal 5: Open Source Communities Banning AI Agents Is a Leading Indicator of Regulated-Sector Pushback
+## Week of August 08, 2026
+- Signal 1: Claude Code's "Auto Mode" Is a Change-Control Governance Crisis in Disguise
+- Signal 2: The FDIC's Fintech Certification Body Is a Template Canada Doesn't Have — and Urgently Needs
+- Signal 3: Supply Chain Provenance Attestations Are Being Weaponized — AI Code Makes This Catastrophically Worse
+- Signal 4: OpenAI's Astra Delay Quietly Reveals a "Capability Ceiling" Governance Model Nobody Has Operationalized
+- Signal 5: Knowledge Distillation at Scale Is Creating a Hidden Model Lineage Problem in Regulated Environments
