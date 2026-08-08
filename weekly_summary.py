@@ -235,7 +235,13 @@ def get_credentials() -> Credentials:
         client_secret=token_data.get("client_secret"),
         scopes=token_data.get("scopes", SCOPES),
     )
-    if creds.refresh_token:
+    if not creds.refresh_token:
+        raise RuntimeError(
+            "GOOGLE_TOKEN_JSON must include a refresh_token. "
+            "Regenerate token.json with offline access and update the GitHub secret."
+        )
+
+    if not creds.valid or creds.expired:
         try:
             creds.refresh(Request())
         except Exception as e:
