@@ -45,6 +45,7 @@ FEEDS = [
     {"name": "Fintech Takes", "url": "https://fintechtakes.com/feed", "category": "fintech"},
     {"name": "The Neuron", "url": "https://www.theneuron.ai/feed", "category": "ai"},
     {"name": "Fintech Finance News", "url": "https://ffnews.com/feed", "category": "fintech"},
+    {"name": "TechCrunch Fintech", "url": "https://techcrunch.com/tag/fintech/feed/", "category": "fintech"},
     {"name": "Shopify Engineering", "url": "https://shopify.engineering/blog.atom", "category": "architecture"},
 ]
 
