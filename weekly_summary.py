@@ -46,6 +46,7 @@ FEEDS = [
     {"name": "The Neuron", "url": "https://www.theneuron.ai/feed", "category": "ai"},
     {"name": "Fintech Finance News", "url": "https://ffnews.com/feed", "category": "fintech"},
     {"name": "TechCrunch Fintech", "url": "https://techcrunch.com/tag/fintech/feed/", "category": "fintech"},
+    {"name": "Bank of Canada News", "url": "https://www.bankofcanada.ca/utility/news/feed/", "category": "policy"},
     {"name": "Shopify Engineering", "url": "https://shopify.engineering/blog.atom", "category": "architecture"},
 ]
 
