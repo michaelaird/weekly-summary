@@ -109,22 +109,11 @@ def generate_summary(feed_content: str) -> str:
     # Load signal history
     history = load_signal_history()
     
-    # Updated prompt for feed-based analysis
     system_prompt = load_prompt("system.txt")
+    user_prompt = load_prompt("user.txt")
     
-    user_message = f"""I've aggregated the latest headlines and summaries from 9 curated newsletters across architecture, fintech, AI, and policy.
-
-Your task: Find 3–5 NON-OBVIOUS INTERSECTIONS or emerging patterns that span multiple newsletters.
-Don't just summarize what each newsletter says. Instead, look for:
-- Connections between signals that no single newsletter explicitly makes
-- Patterns that only become visible when reading across all sources
-- Weak signals: things that are mentioned once or twice but have major implications
-- Contradictions or tensions between different sources (very valuable)
-
-Here's what you should actively AVOID:
-- Repeating headlines from the feeds verbatim
-- Obvious industry trends that are already widely discussed
-- Topics from previous weeks (see history below)
+    user_message = f"""
+{user_prompt}
 
 Previous weeks' signals to avoid:
 {history}
@@ -134,22 +123,6 @@ Previous weeks' signals to avoid:
 ## Latest Newsletter Headlines & Summaries
 
 {feed_content}
-
----
-
-Generate 3–5 signals in this format:
-
-## 🔴 Signal [N]: [Title - 6–10 words, punchy]
-
-**🎯 What's happening:** [2–3 sentences. Cite specific newsletters or trends from above.]
-
-**⚠️ Why it's weak:** [1–2 sentences on why this isn't mainstream yet, even though it should be.]
-
-**💡 So what:** [2–3 sentences of implications for architects and banks in Canada.]
-
----
-
-End with "🧠 Architect's Lens" synthesizing a meta-pattern.
 """
     
     response = client.messages.create(
