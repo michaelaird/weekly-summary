@@ -208,6 +208,15 @@ def build_email_html(body_md: str, run_date: str) -> str:
     body_html = re.sub(r'>\s+<', '><', body_html)  # Remove whitespace between tags
     body_html = re.sub(r'\n\n+', '\n', body_html)   # Collapse multiple newlines
 
+    # Post-process generated HTML to wrap any "Sources:" heading + list
+    # into a container with class `sources` so the email template can style it.
+    try:
+        pattern = re.compile(r"(?:<(?:p|h[1-6])>\s*(?:<strong>)?\s*Sources\s*:\s*(?:</strong>)?\s*</(?:p|h[1-6])>\s*)(<ul>.*?</ul>)", re.IGNORECASE | re.DOTALL)
+        body_html = pattern.sub(r"<div class=\"sources\">\1</div>", body_html)
+    except Exception:
+        # If post-processing fails for any reason, fall back to unmodified HTML
+        pass
+
     env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)), autoescape=True)
     template = env.get_template("email.html")
     return template.render(run_date=run_date, body_html=Markup(body_html))
