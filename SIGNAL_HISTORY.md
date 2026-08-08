@@ -38,3 +38,9 @@
 - Signal 3: Read/Write Path Separation Is the Unacknowledged Architecture Requirement for AI Audit Trails
 - Signal 4: Meta's Cheap Coding Agent Has a Data-Cost Clause Banks Cannot Accept
 - Signal 5: EBA's ESG Data Quality Improvements Are a Template for AI Model Data Governance Canada Will Be Pressured to Mirror
+## Week of August 08, 2026
+- Signal 1: Enterprise "Skills Inheritance" Is Creating an Invisible Dependency Graph Nobody Owns
+- Signal 2: LLM Memory Cost Architecture Is Forcing a "Stateless vs. Stateful" Regulatory Fork
+- Signal 3: The Full LLM Threat Model Is Arriving — and Banks' AppSec Teams Are Structured to Miss Half of It
+- Signal 4: Stablecoin Infrastructure Is Arriving in B2B Payments — and Canada's AML Perimeter Isn't Ready
+- Signal 5: "Big Model Teaches Small Model" Is Creating an Unexamined Model Lineage Problem in Production
