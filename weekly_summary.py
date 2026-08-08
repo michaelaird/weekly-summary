@@ -7,7 +7,11 @@ import os
 import base64
 import json
 import re
+<<<<<<< Updated upstream
 from datetime import datetime, timedelta
+=======
+from datetime import datetime
+>>>>>>> Stashed changes
 from pathlib import Path
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -201,11 +205,20 @@ def update_signal_history(run_date: str, signal_titles: list[str]) -> None:
 def build_email_html(body_md: str, run_date: str) -> str:
     body_html = markdown2.markdown(
         body_md, 
+<<<<<<< Updated upstream
         extras=["fenced-code-blocks", "tables", "strike"]
     )
     
     body_html = re.sub(r'>\s+<', '><', body_html)
     body_html = re.sub(r'\n\n+', '\n', body_html)
+=======
+        extras=["fenced-code-blocks", "tables", "strike", "extra", "smarty"]
+    )
+    
+    # Clean up excessive whitespace/newlines that markdown2 sometimes adds
+    body_html = re.sub(r'>\s+<', '><', body_html)  # Remove whitespace between tags
+    body_html = re.sub(r'\n\n+', '\n', body_html)   # Collapse multiple newlines
+>>>>>>> Stashed changes
 
     env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)), autoescape=True)
     template = env.get_template("email.html")
