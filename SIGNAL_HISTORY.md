@@ -50,3 +50,9 @@
 - Signal 3: KubeVirt + EVPN Is Quietly Solving a Workload Portability Problem That Bank Private Cloud Teams Haven't Named Yet
 - Signal 4: U.S. Data Brokers Selling Frontier Datasets to Foreign Labs — Canada's Privacy Perimeter Is the Next Battlefield
 - Signal 5: ByteDance's 10-Trillion Parameter Model Is Quietly Rewriting the Inference Cost Architecture Assumptions Banks Made 18 Months Ago
+## Week of August 14, 2026
+- Signal 1: Dev Platforms Are Bifurcating — and Banks Are Structuring Their Delivery Model Around the Wrong Fork
+- Signal 2: API Composition Patterns Are Colliding With Open Banking Data Flows in Ways No Gateway Team Has Planned For
+- Signal 3: Anthropic's Finding That Retraining Programs "Don't Scale" Is a Governance Crisis for Banks Betting on Fine-Tuned Models
+- Signal 4: Cloudflare's "AI Pays for Content" Model Is a Quiet Blueprint for How Banks Should Price Data in the CDBA Era
+- Signal 5: DeepSeek's "Everything Is a Plugin" Agent Harness Is the Ungoverned Capability Surface Banks Didn't See Coming
