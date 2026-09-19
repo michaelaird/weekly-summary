@@ -1,0 +1,49 @@
+name: Weekly Weak Signal Summary
+
+on:
+  schedule:
+    # 6:00 AM Toronto (EST = UTC-5, EDT = UTC-4)
+    # Use UTC-4 (EDT, Apr–Oct) → 10:00 UTC
+    # GitHub Actions doesn't adjust for DST, so we use 10:00 UTC
+    # which maps to 6 AM EDT (summer) and 5 AM EST (winter, adjust to 11:00 if needed)
+    - cron: "0 10 * * 5"   # Every Friday at 10:00 UTC (6 AM EDT)
+
+  # Allow manual trigger from GitHub UI for testing
+  workflow_dispatch:
+
+permissions: 
+  contents: write
+
+jobs:
+  send-weekly-summary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run weekly summary
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_USERNAME: ${{ secrets.GMAIL_USERNAME }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          TO_EMAIL: ${{ secrets.TO_EMAIL }}
+          CC_EMAIL: ${{ secrets.CC_EMAIL }}
+        run: python weekly_summary.py
+
+      - name: Commit updated signal history
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "Weekly Summary Bot"
+          git add SIGNAL_HISTORY.md
+          git commit -m "Update signal history: $(date +%Y-%m-%d)" || echo "No changes to commit"
+          git push

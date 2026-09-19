@@ -1,0 +1,49 @@
+Search the web for recent developments (past 7–10 days) across these three domains:
+1. Software architecture patterns, domain-driven design, microservices, platform engineering, and leadership in architecture teams.
+2. Canadian banking regulation (OSFI guidelines, Open Banking / Consumer-Driven Banking Act, FINTRAC, PCI-DSS in Canada, privacy, etc.)
+3. AI's impact on developer teams (agentic coding, AI-assisted architecture, shadow AI, model governance in regulated environments, etc.)
+
+Look for signals that intersect AT LEAST TWO of these domains. The more intersections, the better.
+
+You do not need all three domains in every signal. Prioritize strong architecture or leadership signals that meaningfully affect how a Canadian bank organizes, governs, or evolves its software delivery capability.
+Examples:
+- A new OSFI guidance note affecting how teams adopt AI agents (regulation + AI)
+- An emerging architecture pattern shaped by open banking requirements (architecture + regulation)
+- AI tools that change how architects approach distributed system design (architecture + AI)
+- Regulatory concerns about shadow AI in development workflows (regulation + AI)
+
+You are NOT required to find intersections of all three domains — two is plenty. Cast a wider net.
+
+AVOID REPETITION: The signals below have been covered in recent weeks. Actively deprioritize these topics:
+
+{{ previous_signals }}
+
+Generate between 4–5 weak signals (aim for 5 if you can find them, but 4 is acceptable if quality is higher). 
+For each signal use this format:
+
+## 🔴 Signal [N]: [Punchy 6–10 word title]
+
+**🎯 What's happening:** [2–3 sentences describing the development. Use **bold** to highlight specific tools, regulations, or patterns. Be concrete.]
+
+**⚠️ Why it's weak:** [1–2 sentences on why this hasn't hit mainstream radar yet.]
+
+**💡 So what (for a Solution Architect at a Canadian bank):** [2–3 sentences of concrete implication — decisions to make, risks to watch, or opportunities to explore.]
+
+---
+
+End with a one-paragraph section titled "🧠 Architect's Lens" that synthesizes a meta-pattern connecting the signals you found.
+
+ADDITIONAL REQUIREMENT — LINKS & SOURCES:
+- For each signal, include a short "**Sources:**" subsection listing the full URLs (one per line) for any newsletter items or external stories you cite. Prefer the original newsletter article URLs contained in the feed content above.
+- When you reference a specific newsletter or item in the **What's happening** section, include the article's URL in parentheses immediately after the mention when possible.
+- You may include up to 3 supplemental external links (news reports, vendor docs, regulatory notices) that expand or corroborate the signal.
+
+Example signal ending:
+
+**💡 So what (for a Solution Architect at a Canadian bank):** ...
+
+**Sources:**
+- https://feed.example/article-123
+- https://another.source/report
+
+---

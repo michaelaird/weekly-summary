@@ -1,0 +1,5 @@
+token.json
+credentials.json
+debug/
+__pycache__/
+*.pyc

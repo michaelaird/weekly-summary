@@ -1,0 +1,30 @@
+{
+  "domains": [
+    {
+      "name": "architecture",
+      "weight": 3,
+      "description": "architecture, platform engineering, DDD, microservices, system design"
+    },
+    {
+      "name": "regulation",
+      "weight": 3,
+      "description": "OSFI, open banking, PCI-DSS, privacy, FINTRAC, regulations"
+    },
+    {
+      "name": "ai",
+      "weight": 3,
+      "description": "AI, developer productivity, agentic coding, governance, model risk"
+    }
+  ],
+  "selection": {
+    "per_domain_top": 3,
+    "max_combined_articles": 8,
+    "combined_threshold": 6
+  },
+  "models": {
+    "relevance_model": "claude-haiku-4-5",
+    "deep_analysis_model": "claude-sonnet-5",
+    "relevance_max_tokens": 10000,
+    "deep_max_tokens": 10000
+  }
+}
