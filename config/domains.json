@@ -17,14 +17,14 @@
     }
   ],
   "selection": {
-    "per_domain_top": 4,
-    "max_combined_articles": 10,
-    "combined_threshold": 5
+    "per_domain_top": 3,
+    "max_combined_articles": 12,
+    "combined_threshold": 40
   },
   "models": {
     "relevance_model": "claude-haiku-4-5",
     "deep_analysis_model": "claude-sonnet-5",
     "relevance_max_tokens": 10000,
-    "deep_max_tokens": 10000
+    "deep_max_tokens": 50000
   }
 }
