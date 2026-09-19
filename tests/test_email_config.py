@@ -124,6 +124,23 @@ class EmailConfigTests(unittest.TestCase):
         self.assertEqual(parsed[0]["title"], "Example")
         self.assertEqual(parsed[0]["combined_score"], 6.4)
 
+    def test_extract_json_array_ignores_markdown_link_preamble_before_json(self):
+        import weekly_summary
+
+        sample = '''Here is the result [more context](https://example.com/notes) before the real JSON output:
+[
+  {
+    "title": "Example",
+    "link": "https://example.com",
+    "domain_scores": {"architecture": 8, "regulation": 1, "ai": 0},
+    "combined_score": 6.4
+  }
+]'''
+
+        parsed = weekly_summary.extract_json_array_from_text(sample)
+        self.assertEqual(parsed[0]["title"], "Example")
+        self.assertEqual(parsed[0]["combined_score"], 6.4)
+
     def test_raw_batch_response_logging_for_anthropic_review(self):
         import json
         import os

@@ -84,11 +84,7 @@ def extract_json_array_from_text(text: str) -> list[dict]:
     if not text or not text.strip():
         raise ValueError("Model returned empty content for article relevance scoring.")
 
-    def find_matching_array_start_and_end(raw: str) -> tuple[int, int] | None:
-        start = raw.find("[")
-        if start == -1:
-            return None
-
+    def find_matching_array_from_index(raw: str, start: int) -> tuple[int, int] | None:
         depth = 0
         in_string = False
         escape = False
@@ -113,6 +109,18 @@ def extract_json_array_from_text(text: str) -> list[dict]:
                     return start, idx
         return None
 
+    def candidate_arrays(raw: str) -> list[str]:
+        items: list[str] = []
+        for idx, char in enumerate(raw):
+            if char != "[":
+                continue
+            match = find_matching_array_from_index(raw, idx)
+            if match is None:
+                continue
+            start, end = match
+            items.append(raw[start : end + 1])
+        return items
+
     candidates: list[str] = []
     fenced = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text, flags=re.IGNORECASE)
     if fenced:
@@ -120,11 +128,7 @@ def extract_json_array_from_text(text: str) -> list[dict]:
         if fenced_text:
             candidates.append(fenced_text)
 
-    if "[" in text:
-        full_match = find_matching_array_start_and_end(text)
-        if full_match is not None:
-            start, end = full_match
-            candidates.append(text[start : end + 1])
+    candidates.extend(candidate_arrays(text))
 
     for candidate in candidates:
         try:
