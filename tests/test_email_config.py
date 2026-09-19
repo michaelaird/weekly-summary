@@ -141,6 +141,22 @@ class EmailConfigTests(unittest.TestCase):
         self.assertEqual(parsed[0]["title"], "Example")
         self.assertEqual(parsed[0]["combined_score"], 6.4)
 
+    def test_generate_relevance_summary_includes_domain_scores(self):
+        import weekly_summary
+
+        articles = [{
+            "title": "Example signal",
+            "link": "https://example.com/signal",
+            "domain_scores": {"architecture": 8, "regulation": 6, "ai": 3},
+            "combined_score": 9.2,
+        }]
+
+        summary = weekly_summary.generate_relevance_summary(articles)
+        self.assertIn("Example signal", summary)
+        self.assertIn("architecture: 8", summary)
+        self.assertIn("regulation: 6", summary)
+        self.assertIn("ai: 3", summary)
+
     def test_raw_batch_response_logging_for_anthropic_review(self):
         import json
         import os

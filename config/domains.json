@@ -17,9 +17,9 @@
     }
   ],
   "selection": {
-    "per_domain_top": 3,
-    "max_combined_articles": 8,
-    "combined_threshold": 6
+    "per_domain_top": 4,
+    "max_combined_articles": 10,
+    "combined_threshold": 5
   },
   "models": {
     "relevance_model": "claude-haiku-4-5",

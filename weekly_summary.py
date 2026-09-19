@@ -49,7 +49,7 @@ DEFAULT_DOMAIN_CONFIG = {
 }
 
 MODEL_USAGE_STATS: list[dict] = []
-
+LAST_SELECTED_ARTICLES: list[dict] = []
 
 
 def resolve_model_name(model_name: str | None) -> str:
@@ -544,7 +544,11 @@ def generate_deep_analysis(articles: list[dict], config: dict | None = None) -> 
     user_prompt = load_prompt("user.txt")
     history = load_signal_history()
 
+    relevance_summary = generate_relevance_summary(articles, config)
+
     user_message = f"""
+{relevance_summary}
+
 {user_prompt}
 
 Previous weeks' signals to avoid:
@@ -642,15 +646,26 @@ def update_signal_history(run_date: str, signal_titles: list[str]) -> None:
 
 # ── Email rendering ───────────────────────────────────────────────────────────
 
-def build_email_html(body_md: str, run_date: str, model_usage: list[dict] | None = None) -> str:
+def build_email_html(body_md: str, run_date: str, model_usage: list[dict] | None = None, selected_articles: list[dict] | None = None) -> str:
     body_html = markdown2.markdown(
-        body_md, 
+        body_md,
         extras=["fenced-code-blocks", "tables", "strike", "extra", "smarty"]
     )
-    
+
     # Clean up excessive whitespace/newlines that markdown2 sometimes adds
     body_html = re.sub(r'>\s+<', '><', body_html)  # Remove whitespace between tags
     body_html = re.sub(r'\n\n+', '\n', body_html)   # Collapse multiple newlines
+
+    relevance_html = ""
+    if selected_articles:
+        relevance_md = generate_relevance_summary(selected_articles)
+        relevance_html = markdown2.markdown(
+            relevance_md,
+            extras=["fenced-code-blocks", "tables", "strike", "extra", "smarty"],
+        )
+        relevance_html = re.sub(r'>\s+<', '><', relevance_html)
+        relevance_html = re.sub(r'\n\n+', '\n', relevance_html)
+        relevance_html = f'<div class="relevance-summary">{relevance_html}</div>'
 
     # Post-process generated HTML to wrap any "Sources:" heading + list
     # into a container with class `sources` so the email template can style it.
@@ -665,7 +680,7 @@ def build_email_html(body_md: str, run_date: str, model_usage: list[dict] | None
     template = env.get_template("email.html")
     return template.render(
         run_date=run_date,
-        body_html=Markup(body_html),
+        body_html=Markup(relevance_html + body_html),
         model_usage=model_usage or [],
     )
 
@@ -703,12 +718,14 @@ def send_email(subject: str, html_body: str):
 
 def run_relevance_and_deep_analysis(days_back: int = 7) -> str:
     """Use a low-cost model to filter the feed, then a deeper model to analyze the selected articles."""
+    global LAST_SELECTED_ARTICLES
     MODEL_USAGE_STATS.clear()
     print("Fetching newsletter RSS feeds...")
     raw_articles = fetch_feed_articles(days_back=days_back)
 
     if not raw_articles:
         print("✗ No feed content fetched. Aborting.")
+        LAST_SELECTED_ARTICLES = []
         return ""
 
     print("\nScoring article relevance with the lower-cost model...")
@@ -724,8 +741,10 @@ def run_relevance_and_deep_analysis(days_back: int = 7) -> str:
 
     if not selected:
         print("✗ No articles crossed the relevance threshold.")
+        LAST_SELECTED_ARTICLES = []
         return ""
 
+    LAST_SELECTED_ARTICLES = selected
     print(f"Selected {len(selected)} candidate articles for deep analysis.")
     print("\nGenerating deeper summary from full article content...")
     return generate_deep_analysis(selected)
@@ -742,7 +761,7 @@ def main():
 
     if should_send_email():
         print("Building email...")
-        html = build_email_html(summary_md, run_date, model_usage=get_model_usage_stats())
+        html = build_email_html(summary_md, run_date, model_usage=get_model_usage_stats(), selected_articles=LAST_SELECTED_ARTICLES)
 
         print("Sending via Gmail SMTP...")
         send_email(subject, html)
