@@ -259,6 +259,25 @@ def load_prompt(filename: str) -> str:
     return (PROMPTS_DIR / filename).read_text(encoding="utf-8").strip()
 
 
+def render_prompt_template(filename: str, *, config: dict | None = None, previous_signals: str = "") -> str:
+    """Render a prompt template with runtime-injected config values."""
+    config = config or load_domain_config()
+    domain_defs = config.get("domains", [])
+    domain_lines = []
+    for index, domain in enumerate(domain_defs, start=1):
+        domain_name = domain.get("name", f"domain_{index}")
+        description = domain.get("description", "")
+        if description:
+            domain_lines.append(f"{index}. {domain_name}: {description}")
+        else:
+            domain_lines.append(f"{index}. {domain_name}")
+
+    template = load_prompt(filename)
+    rendered = template.replace("{{ domain_list }}", "\n".join(domain_lines))
+    rendered = rendered.replace("{{ previous_signals }}", previous_signals)
+    return rendered.strip()
+
+
 # ── Feed aggregation ──────────────────────────────────────────────────────────
 
 def fetch_feed_articles(days_back: int = 7) -> list[dict]:
@@ -423,6 +442,7 @@ def select_relevant_articles(articles: list[dict], threshold: int | None = None,
     selected: list[dict] = []
     seen_links = set()
 
+    # 1) Preserve the highest-scoring article(s) for each domain before considering overall combined rank.
     for domain in domain_names:
         ranked = sorted(
             articles,
@@ -437,19 +457,38 @@ def select_relevant_articles(articles: list[dict], threshold: int | None = None,
                 selected.append(article)
                 seen_links.add(article.get("link"))
 
-    combined_ranked = sorted(
-        [article for article in articles if article.get("combined_score", 0) >= threshold],
-        key=lambda item: (
-            item.get("combined_score", 0),
-            max(item.get("domain_scores", {}).values() or [0]),
-        ),
-        reverse=True,
-    )[:max_combined]
+    # 2) Fill out remaining slots with the highest combined-score articles that are still distinct.
+    remaining_slots = max(0, max_combined - len(selected))
+    if remaining_slots > 0:
+        combined_ranked = sorted(
+            [article for article in articles if article.get("link") not in seen_links and article.get("combined_score", 0) >= threshold],
+            key=lambda item: (
+                item.get("combined_score", 0),
+                max(item.get("domain_scores", {}).values() or [0]),
+            ),
+            reverse=True,
+        )
+        for article in combined_ranked[:remaining_slots]:
+            if article.get("link") not in seen_links:
+                selected.append(article)
+                seen_links.add(article.get("link"))
 
-    for article in combined_ranked:
-        if article.get("link") not in seen_links:
-            selected.append(article)
-            seen_links.add(article.get("link"))
+    # 3) If more slots remain, fill with the highest-scoring distinct articles even if they sit just below threshold.
+    if len(selected) < max_combined:
+        fallback_ranked = sorted(
+            [article for article in articles if article.get("link") not in seen_links],
+            key=lambda item: (
+                item.get("combined_score", 0),
+                max(item.get("domain_scores", {}).values() or [0]),
+            ),
+            reverse=True,
+        )
+        for article in fallback_ranked:
+            if article.get("link") not in seen_links:
+                selected.append(article)
+                seen_links.add(article.get("link"))
+            if len(selected) >= max_combined:
+                break
 
     return selected
 
@@ -540,9 +579,8 @@ def generate_deep_analysis(articles: list[dict], config: dict | None = None) -> 
             f"{content[:8000]}"
         )
 
-    system_prompt = load_prompt("system.txt")
-    user_prompt = load_prompt("user.txt")
-    history = load_signal_history()
+    system_prompt = render_prompt_template("system.txt", config=config)
+    user_prompt = render_prompt_template("user.txt", config=config, previous_signals=load_signal_history())
 
     relevance_summary = generate_relevance_summary(articles, config)
 
@@ -552,7 +590,7 @@ def generate_deep_analysis(articles: list[dict], config: dict | None = None) -> 
 {user_prompt}
 
 Previous weeks' signals to avoid:
-{history}
+{load_signal_history()}
 
 ---
 
@@ -626,19 +664,57 @@ def extract_signal_titles(summary_md: str) -> list[str]:
     return [title.strip() for title in matches]
 
 
+def prune_signal_history(history_text: str, datetime_value: str | None = None) -> str:
+    """Drop history sections older than 90 days while preserving the most recent entries."""
+    if not history_text.strip():
+        return history_text.strip()
+
+    reference = datetime.strptime(datetime_value or datetime.now().strftime("%B %d, %Y"), "%B %d, %Y")
+    cutoff = reference - timedelta(days=90)
+    sections: list[str] = []
+    current_block: list[str] = []
+    current_date: datetime | None = None
+
+    for line in history_text.splitlines():
+        if line.startswith("## Week of "):
+            if current_block:
+                if current_date is not None and current_date >= cutoff:
+                    sections.append("\n".join(current_block).rstrip())
+                current_block = []
+            try:
+                current_date = datetime.strptime(line.replace("## Week of ", ""), "%B %d, %Y")
+            except ValueError:
+                current_date = None
+            current_block = [line]
+            continue
+
+        if current_block:
+            current_block.append(line)
+
+    if current_block:
+        if current_date is not None and current_date >= cutoff:
+            sections.append("\n".join(current_block).rstrip())
+
+    if not sections:
+        return "# Weak Signal History\n"
+
+    return "\n\n".join(sections).rstrip() + "\n"
+
+
 def update_signal_history(run_date: str, signal_titles: list[str]) -> None:
-    """Append this week's signals to SIGNAL_HISTORY.md."""
+    """Append this week's signals to SIGNAL_HISTORY.md and prune entries older than 90 days."""
     history_file = BASE_DIR / "SIGNAL_HISTORY.md"
-    
+
     new_entry = f"\n## Week of {run_date}\n"
     for i, title in enumerate(signal_titles, 1):
         new_entry += f"- Signal {i}: {title}\n"
-    
+
     if history_file.exists():
         existing = history_file.read_text(encoding="utf-8")
+        existing = prune_signal_history(existing, datetime_value=run_date)
     else:
         existing = "# Weak Signal History\n"
-    
+
     updated = existing.rstrip() + new_entry
     history_file.write_text(updated, encoding="utf-8")
     print(f"✅ Updated SIGNAL_HISTORY.md with {len(signal_titles)} new signals")

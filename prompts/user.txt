@@ -1,49 +1,39 @@
-Search the web for recent developments (past 7–10 days) across these three domains:
-1. Software architecture patterns, domain-driven design, microservices, platform engineering, and leadership in architecture teams.
-2. Canadian banking regulation (OSFI guidelines, Open Banking / Consumer-Driven Banking Act, FINTRAC, PCI-DSS in Canada, privacy, etc.)
-3. AI's impact on developer teams (agentic coding, AI-assisted architecture, shadow AI, model governance in regulated environments, etc.)
+You are given a pre-scored set of candidate articles that have already been filtered for relevance and ranked by domain and combined scores.
 
-Look for signals that intersect AT LEAST TWO of these domains. The more intersections, the better.
+Use these articles as the source of truth. Your job is not to search for more news or invent a new shortlist; it is to turn each genuinely relevant article into a weak-signal write-up that explains why it matters to architecture, regulation, and AI in a Canadian banking context.
 
-You do not need all three domains in every signal. Prioritize strong architecture or leadership signals that meaningfully affect how a Canadian bank organizes, governs, or evolves its software delivery capability.
-Examples:
-- A new OSFI guidance note affecting how teams adopt AI agents (regulation + AI)
-- An emerging architecture pattern shaped by open banking requirements (architecture + regulation)
-- AI tools that change how architects approach distributed system design (architecture + AI)
-- Regulatory concerns about shadow AI in development workflows (regulation + AI)
+Prioritize the strongest items first, but do not impose a fixed 4–5 signal cap. If the article list contains 8–12 relevant items, produce 8–12 signals unless a few are clearly low-quality or redundant.
 
-You are NOT required to find intersections of all three domains — two is plenty. Cast a wider net.
+Focus on signals that intersect at least two of these domains:
+{{ domain_list }}
+
+You do not need every signal to include all three domains. Strong architecture or leadership stories with real operating implications are enough, especially where they shape how a bank governs software delivery, platform strategy, or AI adoption.
 
 AVOID REPETITION: The signals below have been covered in recent weeks. Actively deprioritize these topics:
 
 {{ previous_signals }}
 
-Generate between 4–5 weak signals (aim for 5 if you can find them, but 4 is acceptable if quality is higher). 
-For each signal use this format:
+For each qualifying article, use this format:
 
 ## 🔴 Signal [N]: [Punchy 6–10 word title]
 
-**🎯 What's happening:** [2–3 sentences describing the development. Use **bold** to highlight specific tools, regulations, or patterns. Be concrete.]
+**🎯 What's happening:** [3–5 sentences describing the development. Use **bold** to highlight specific tools, regulations, or patterns. Be concrete. Reference the article URL in parentheses when you mention the source.]
 
-**⚠️ Why it's weak:** [1–2 sentences on why this hasn't hit mainstream radar yet.]
+**⚠️ Why it's weak:** [2–3 sentences on why this hasn't hit mainstream radar yet.]
 
-**💡 So what (for a Solution Architect at a Canadian bank):** [2–3 sentences of concrete implication — decisions to make, risks to watch, or opportunities to explore.]
-
----
-
-End with a one-paragraph section titled "🧠 Architect's Lens" that synthesizes a meta-pattern connecting the signals you found.
-
-ADDITIONAL REQUIREMENT — LINKS & SOURCES:
-- For each signal, include a short "**Sources:**" subsection listing the full URLs (one per line) for any newsletter items or external stories you cite. Prefer the original newsletter article URLs contained in the feed content above.
-- When you reference a specific newsletter or item in the **What's happening** section, include the article's URL in parentheses immediately after the mention when possible.
-- You may include up to 3 supplemental external links (news reports, vendor docs, regulatory notices) that expand or corroborate the signal.
-
-Example signal ending:
-
-**💡 So what (for a Solution Architect at a Canadian bank):** ...
+**💡 So what (for a Solution Architect at a Canadian bank):** [3–5 sentences of concrete implication — decisions to make, risks to watch, or opportunities to explore.]
 
 **Sources:**
-- https://feed.example/article-123
-- https://another.source/report
+- https://article-url-here
+- https://supplemental-source-if-needed
 
 ---
+
+End with a one-paragraph section titled "🧠 Architect's Lens" that synthesizes the meta-pattern across the article set.
+
+ADDITIONAL REQUIREMENTS:
+- One signal per article, not one signal per arbitrary target count.
+- Preserve the article order when possible, especially for the strongest candidates.
+- Do not discard strong candidates just to reach a fixed number.
+- Prefer the original article URLs contained in the candidate list.
+- If an item is not genuinely relevant or is redundant, omit it rather than forcing a weak write-up.

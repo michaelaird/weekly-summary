@@ -6,9 +6,7 @@ Your job is to surface WEAK SIGNALS: early, under-discussed developments that ha
 but have meaningful implications for enterprise software, developer teams, or how Canadian banking operates.
 
 Signals can intersect ANY combination of these domains:
-- Software architecture patterns, microservices, domain-driven design, and platform engineering
-- Canadian banking regulation
-- AI's impact on developer teams
+{{ domain_list }}
 
 Two-domain intersections are just as valuable as three-domain ones. Cast a wide net. Look for emerging patterns
 that feel "just visible" but haven't hit critical mass yet.
@@ -21,7 +19,7 @@ find a different angle or skip it entirely in favor of something truly new.
 Tone: concise, sharp, practitioner-level. No fluff. No obvious takes. No regurgitation of last week's headlines.
 
 FORMAT INSTRUCTIONS:
-- Generate 4–5 signals (aim for 5, accept 4 if quality is higher).
+- Generate one signal for each article that is passed in.
 - Use emoji sparingly but strategically (e.g., 🏗️ for architecture, ⚖️ for regulation, 🤖 for AI).
 - Use **bold** to highlight key concepts, regulations, patterns, or tools.
 - Structure each signal clearly: title → what's happening → why it's weak → implications.

@@ -37,40 +37,55 @@ class EmailConfigTests(unittest.TestCase):
                 "link": "https://example.com/a",
                 "summary": "Platform engineering and DDD for bank teams.",
                 "domain_scores": {"architecture": 9, "regulation": 2, "ai": 1},
+                "combined_score": 27,
             },
             {
                 "title": "Architecture pattern B",
                 "link": "https://example.com/b",
                 "summary": "Platform trade-offs in architecture teams.",
                 "domain_scores": {"architecture": 8, "regulation": 1, "ai": 2},
+                "combined_score": 25,
             },
             {
                 "title": "Regulation note",
                 "link": "https://example.com/c",
                 "summary": "OSFI and open banking guidance.",
                 "domain_scores": {"architecture": 1, "regulation": 10, "ai": 1},
+                "combined_score": 30,
             },
             {
                 "title": "AI governance note",
                 "link": "https://example.com/d",
                 "summary": "Shadow AI governance and model risk. ",
                 "domain_scores": {"architecture": 1, "regulation": 4, "ai": 9},
+                "combined_score": 28,
             },
             {
                 "title": "Low relevance article",
                 "link": "https://example.com/e",
                 "summary": "General engineering article unrelated.",
                 "domain_scores": {"architecture": 1, "regulation": 1, "ai": 1},
+                "combined_score": 3,
+            },
+            {
+                "title": "High combined article",
+                "link": "https://example.com/f",
+                "summary": "Very relevant broader article.",
+                "domain_scores": {"architecture": 5, "regulation": 5, "ai": 5},
+                "combined_score": 30,
             },
         ]
 
-        selected = weekly_summary.select_relevant_articles(articles, threshold=6, per_domain_top=2, max_combined=2)
+        selected = weekly_summary.select_relevant_articles(articles, threshold=6, per_domain_top=2, max_combined=5)
 
-        selected_titles = {item["title"] for item in selected}
+        selected_titles = [item["title"] for item in selected]
         self.assertIn("Architecture pattern A", selected_titles)
+        self.assertIn("Architecture pattern B", selected_titles)
         self.assertIn("Regulation note", selected_titles)
         self.assertIn("AI governance note", selected_titles)
+        self.assertIn("High combined article", selected_titles)
         self.assertNotIn("Low relevance article", selected_titles)
+        self.assertEqual(len(selected), 5)
 
     def test_supported_anthropic_model_ids_are_used_directly(self):
         import weekly_summary
@@ -156,6 +171,34 @@ class EmailConfigTests(unittest.TestCase):
         self.assertIn("architecture: 8", summary)
         self.assertIn("regulation: 6", summary)
         self.assertIn("ai: 3", summary)
+
+    def test_prompt_templates_render_configured_domains_at_runtime(self):
+        import weekly_summary
+
+        config = weekly_summary.load_domain_config()
+        rendered = weekly_summary.render_prompt_template("user.txt", config=config)
+
+        self.assertIn("architecture", rendered.lower())
+        self.assertIn("regulation", rendered.lower())
+        self.assertIn("ai", rendered.lower())
+        self.assertIn("platform engineering", rendered.lower())
+        self.assertIn("OSFI", rendered.upper())
+
+    def test_prune_signal_history_removes_entries_older_than_90_days(self):
+        import weekly_summary
+
+        history = '''# Weak Signal History
+
+## Week of June 15, 2026
+- Signal 1: Old signal
+
+## Week of September 19, 2026
+- Signal 1: Fresh signal
+'''
+
+        pruned = weekly_summary.prune_signal_history(history, datetime_value="September 19, 2026")
+        self.assertNotIn("June 15, 2026", pruned)
+        self.assertIn("September 19, 2026", pruned)
 
     def test_raw_batch_response_logging_for_anthropic_review(self):
         import json
