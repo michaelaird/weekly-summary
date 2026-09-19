@@ -74,3 +74,9 @@
 - Signal 3: The Bank of Canada Just Quietly Undercut Every AI Headcount Business Case
 - Signal 4: Model Country-of-Origin Is Becoming a Procurement Control Plane
 - Signal 5: RAG's "Effective Date" Problem Is an Unbuilt Model Risk Control
+## Week of September 19, 2026
+- Signal 1: Planner/Executor Split Is Quietly Becoming a Required Agent Architecture Pattern
+- Signal 2: AI Gateway Consolidation Is Creating an Unnamed Fourth-Party Risk Layer
+- Signal 3: Bank of Canada's Own Diffusion Timeline Undercuts Banks' AI ROI Business Cases
+- Signal 4: Unverified "Self-Replicating AI" Claims Are Outrunning Evidence in Governance Discourse
+- Signal 5: Codebase Architecture Now Directly Determines Coding-Agent Success Rates
