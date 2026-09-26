@@ -184,6 +184,41 @@ class EmailConfigTests(unittest.TestCase):
         self.assertIn("platform engineering", rendered.lower())
         self.assertIn("OSFI", rendered.upper())
 
+    def test_weekly_pipeline_exposes_explicit_stage_outputs(self):
+        import weekly_summary
+        from datetime import datetime, timedelta
+
+        articles = [
+            {
+                "title": "Architecture signal",
+                "link": "https://example.com/architecture",
+                "summary": "Platform engineering and DDD is important.",
+                "feed_name": "Example Feed",
+                "category": "architecture",
+                "published": datetime.now() - timedelta(days=1),
+            },
+            {
+                "title": "AI governance signal",
+                "link": "https://example.com/ai",
+                "summary": "Governance and model risk are discussed.",
+                "feed_name": "Example Feed",
+                "category": "ai",
+                "published": datetime.now() - timedelta(days=2),
+            },
+        ]
+
+        pipeline = weekly_summary.run_stage_pipeline(articles, config=weekly_summary.load_domain_config())
+
+        self.assertEqual(
+            pipeline["stage_order"],
+            ["fetch", "score", "select", "enrich", "analyze"],
+        )
+        self.assertIn("raw_articles", pipeline)
+        self.assertIn("scored_articles", pipeline)
+        self.assertIn("selected_articles", pipeline)
+        self.assertIn("enriched_articles", pipeline)
+        self.assertIn("summary_md", pipeline)
+
     def test_prune_signal_history_removes_entries_older_than_90_days(self):
         import weekly_summary
 
