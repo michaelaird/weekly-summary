@@ -24,7 +24,7 @@
   "models": {
     "relevance_model": "claude-haiku-4-5",
     "deep_analysis_model": "claude-sonnet-5",
-    "relevance_max_tokens": 10000,
-    "deep_max_tokens": 50000
+    "relevance_max_tokens": 2000,
+    "deep_max_tokens": 8000
   }
 }

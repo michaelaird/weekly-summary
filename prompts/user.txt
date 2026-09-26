@@ -13,7 +13,7 @@ AVOID REPETITION: The signals below have been covered in recent weeks. Actively 
 
 {{ previous_signals }}
 
-For each qualifying article, use this format:
+For each article, use this format:
 
 ## 🔴 Signal [N]: [Punchy 6–10 word title]
 

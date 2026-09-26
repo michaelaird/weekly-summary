@@ -18,11 +18,16 @@ find a different angle or skip it entirely in favor of something truly new.
 
 Tone: concise, sharp, practitioner-level. No fluff. No obvious takes. No regurgitation of last week's headlines.
 
-FORMAT INSTRUCTIONS:
-- Generate one signal for each article that is passed in.
+FORMAT INSTRUCTIONS (Per-Article, Focused Analysis):
+- Generate one self-contained signal for each single article passed to the model.
+- Keep analysis tightly scoped to the article: avoid adding new external facts.
 - Use emoji sparingly but strategically (e.g., 🏗️ for architecture, ⚖️ for regulation, 🤖 for AI).
 - Use **bold** to highlight key concepts, regulations, patterns, or tools.
 - Structure each signal clearly: title → what's happening → why it's weak → implications.
-- Make it scannable. Busy architects skim emails at their desk.
-- End with a synthesizing "Architect's Lens" paragraph that ties the signals together.
+- Keep each article analysis short and actionable (roughly 150–350 words).
+- End with a synthesizing "Architect's Lens" paragraph that ties the per-article signals together when the caller will merge outputs. If running per-article only, include a one-line summary for merging.
 - Prefer emerging signals that are 1–3 weeks old, not mature trends already in the news for months.
+
+PROMPT USAGE NOTES:
+- These templates are intended for one-article-at-a-time analysis. The orchestrator will call the model per-article and merge outputs into the final newsletter.
+- Avoid instructing the model to review or compare multiple articles in a single call; that coordination happens outside the model.

@@ -4,6 +4,7 @@
 - Signal 3: Kubernetes' Cost Model Is Structurally Wrong for Inference Workloads
 - Signal 4: Tokenized Securities Just Got a Green Light — and Canada Has No Answer Yet
 - Signal 5: The PR Is Dying as the Unit of Code Review — and Nobody's Asked What That Means for Audit Trails
+
 ## Week of September 19, 2026
 - Signal 1: Live Migrations Are Becoming a Named Architecture Discipline
 - Signal 2: Platform Readiness — Not Model Quality — Is Capping Agentic ROI
@@ -15,3 +16,11 @@
 - Signal 8: LLM "Memory" Is an Undocumented Application Boundary, Not a Model Feature
 - Signal 9: Nine of the Industry's Standard AI Benchmarks Have Grading Defects
 - Signal 10: RAG Accuracy Hinges on Chunking Decisions Nobody Documents
+## Week of September 26, 2026
+- Signal 1: An AI Agent Breached a Government Portal — Who Files the Incident Report?
+- Signal 2: Full-Duplex Voice AI Breaks the Turn-Based Assumptions Your Call Recording Stack Is Built On
+- Signal 3: Agent Coordinators Are Becoming Standard Infrastructure — But the Failure Domain Has No Owner
+- Signal 4: Quantization and On-Device Inference Are Becoming a Sovereignty Lever, Not Just a Cost Play
+- Signal 5: Agents Now Get Entra IDs, Email Addresses, and Org Chart Seats — Identity Governance Has a New Headcount Category
+- Signal 6: NatWest's Voice Banking Trial Is the Consent Question Canadian Banks Haven't Answered Yet
+- Signal 7: Data Lifecycle Design Is the Unsung Backbone of Privacy Compliance — and Nobody Maps It

@@ -588,61 +588,138 @@ class ArticleAnalyzer:
             return "No deeply relevant articles selected for analysis."
 
         if not self.should_use_live_model():
+            # Produce a cheap combined summary when live model is not available
             return generate_relevance_summary(articles, self.config)
 
         model_name = resolve_model_name(self.config.get("models", {}).get("deep_analysis_model", "claude-sonnet-5"))
-        max_tokens = int(self.config.get("models", {}).get("deep_max_tokens", 10000))
-
-        article_sections = []
-        for index, article in enumerate(articles, 1):
-            fallback_text = article.get("summary") or article.get("title") or ""
-            content = article.get("full_text") or fetch_article_content(article["link"], fallback_text)
-            article_sections.append(
-                f"## Article {index}: {article['title']}\n"
-                f"URL: {article['link']}\n"
-                f"Scores: {article.get('domain_scores', {})}\n\n"
-                f"{content[:8000]}"
-            )
+        max_tokens = int(self.config.get("models", {}).get("deep_max_tokens", 4000))
 
         system_prompt = render_prompt_template("system.txt", config=self.config)
-        user_prompt = render_prompt_template("user.txt", config=self.config, previous_signals=load_signal_history())
-
-        relevance_summary = generate_relevance_summary(articles, self.config)
-        user_message = f"""
-{relevance_summary}
-
-{user_prompt}
-
-Previous weeks' signals to avoid:
-{load_signal_history()}
-
----
-
-## Selected articles for deep analysis
-
-{chr(10).join(article_sections)}
-"""
+        user_prompt_base = render_prompt_template("user.txt", config=self.config, previous_signals=load_signal_history())
 
         client = get_anthropic_runtime_client(live=self.live_model_available)
-        response = client.messages.create(
-            model=model_name,
-            max_tokens=max_tokens,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_message}],
-        )
 
-        usage = getattr(response, "usage", None)
-        if usage is not None:
-            usage = {
-                "input_tokens": getattr(usage, "input_tokens", None),
-                "output_tokens": getattr(usage, "output_tokens", None),
-                "cache_creation_input_tokens": getattr(usage, "cache_creation_input_tokens", None),
-                "cache_read_input_tokens": getattr(usage, "cache_read_input_tokens", None),
-            }
-        record_model_usage("deep_analysis", model_name, usage, max_tokens=max_tokens)
+        def _build_user_message(article: dict, idx: int) -> str:
+            # Load article content (fallback to summary/title)
+            fallback_text = article.get("summary") or article.get("title") or ""
+            content = article.get("full_text") or fetch_article_content(article.get("link", ""), fallback_text)
 
-        text_parts = [block.text for block in response.content if getattr(block, "type", None) == "text"]
-        return "\n\n".join(text_parts).strip()
+            relevance_summary = generate_relevance_summary([article], self.config)
+
+            # Token-budget trimming: prefer tokens over raw char caps.
+            # Configurable total prompt budget (tokens) minus the model's expected output tokens.
+            total_budget_tokens = int(self.config.get("models", {}).get("deep_total_budget_tokens", 8000))
+            output_token_budget = int(self.config.get("models", {}).get("deep_max_tokens", max_tokens))
+            allowed_prompt_tokens = max(512, total_budget_tokens - output_token_budget)
+            # Conservative chars per token estimate (4 chars/token)
+            allowed_prompt_chars = allowed_prompt_tokens * 4
+
+            # Reserve ~1k chars for boilerplate (relevance_summary, user prompt base, headers)
+            reserved_for_boilerplate = 1000
+            allowed_for_content_and_history = max(500, allowed_prompt_chars - reserved_for_boilerplate)
+
+            # Allocate portion to article content and signal history (60/40 split)
+            alloc_content = int(allowed_for_content_and_history * 0.6)
+            alloc_history = allowed_for_content_and_history - alloc_content
+
+            signal_history = load_signal_history()
+            trimmed_history = signal_history if len(signal_history) <= alloc_history else signal_history[:alloc_history]
+            trimmed_content = content if len(content) <= alloc_content else content[:alloc_content]
+
+            return (
+                f"{relevance_summary}\n\n"
+                f"{user_prompt_base}\n\n"
+                f"Previous weeks' signals to avoid:\n{trimmed_history}\n\n"
+                f"---\n\n"
+                f"## Article {idx}: {article.get('title')}\n"
+                f"URL: {article.get('link')}\n"
+                f"Scores: {article.get('domain_scores', {})}\n\n"
+                f"{trimmed_content}"
+            )
+
+        # Per-article call with retry/backoff and rate-limit handling
+        def _analyze_article(article: dict, idx: int) -> str:
+            attempts = 3
+            backoff = 1.0
+            user_message = _build_user_message(article, idx)
+            for attempt in range(1, attempts + 1):
+                try:
+                    response = client.messages.create(
+                        model=model_name,
+                        max_tokens=max_tokens,
+                        system=system_prompt,
+                        messages=[{"role": "user", "content": user_message}],
+                    )
+                    usage = getattr(response, "usage", None)
+                    if usage is not None:
+                        usage = {"input_tokens": getattr(usage, "input_tokens", None), "output_tokens": getattr(usage, "output_tokens", None)}
+                    record_model_usage(f"deep_analysis_article_{idx}", model_name, usage, max_tokens=max_tokens)
+                    write_debug_response_to_file(f"anthropic_deep_article_{idx}", "\n".join(block.text for block in response.content if getattr(block, "type", None) == "text"), usage=usage)
+                    return "\n\n".join(block.text for block in response.content if getattr(block, "type", None) == "text").strip()
+
+                except ValueError as exc:
+                    text = str(exc)
+                    if "Streaming is required" in text and attempt < attempts:
+                        # Reduce token budget and retry once
+                        new_max = max(1000, max_tokens // 2)
+                        print(f"  ⚠️ Streaming required for article {idx}; retrying with max_tokens={new_max}")
+                        nonlocal_max_tokens = new_max
+                        # adjust local max_tokens for next attempt by rebinding the name used below
+                        # call the API again with smaller budget
+                        try:
+                            response = client.messages.create(
+                                model=model_name,
+                                max_tokens=new_max,
+                                system=system_prompt,
+                                messages=[{"role": "user", "content": user_message}],
+                            )
+                            usage = getattr(response, "usage", None)
+                            if usage is not None:
+                                usage = {"input_tokens": getattr(usage, "input_tokens", None), "output_tokens": getattr(usage, "output_tokens", None)}
+                            record_model_usage(f"deep_analysis_article_{idx}", model_name, usage, max_tokens=new_max)
+                            write_debug_response_to_file(f"anthropic_deep_article_{idx}_fallback", "\n".join(block.text for block in response.content if getattr(block, "type", None) == "text"), usage=usage)
+                            return "\n\n".join(block.text for block in response.content if getattr(block, "type", None) == "text").strip()
+                        except Exception as exc2:
+                            print(f"  ✗ Retry after streaming error failed for article {idx}: {exc2}")
+                            return ""
+                    else:
+                        print(f"  ✗ Deep analysis ValueError for article {idx}: {exc}")
+                        return ""
+
+                except Exception as exc:
+                    msg = str(exc).lower()
+                    if attempt < attempts and ("rate" in msg or "429" in msg or "throttle" in msg):
+                        import time
+
+                        print(f"  ⚠️ Rate-limited analyzing article {idx}, retrying in {backoff}s...")
+                        time.sleep(backoff)
+                        backoff *= 2
+                        continue
+                    print(f"  ✗ Error analyzing article {idx}: {exc}")
+                    return ""
+
+        # Run analyses in bounded parallelism
+        max_workers = min(3, max(1, len(articles)))
+        results: list[str] = [""] * len(articles)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+            future_map = {ex.submit(_analyze_article, art, idx + 1): i for i, (idx, art) in enumerate(zip(range(len(articles)), articles))}
+            for fut in concurrent.futures.as_completed(future_map):
+                i = future_map[fut]
+                try:
+                    results[i] = fut.result() or ""
+                except Exception as exc:
+                    print(f"  ✗ Unexpected error during deep analysis for index {i}: {exc}")
+                    results[i] = ""
+
+        # Merge per-article analyses into final summary
+        merged = []
+        for idx, article in enumerate(articles, start=1):
+            header = f"## Article {idx}: {article.get('title')} ({article.get('link')})"
+            merged.append(header)
+            merged.append(results[idx - 1] or (article.get("summary") or ""))
+
+        final = "\n\n".join(merged).strip()
+        return final
 
     def run_stage_pipeline(self, raw_articles: list[dict] | None = None, *, days_back: int | None = None) -> dict:
         """Run the weekly pipeline as explicit stages with clear data flow between them."""
