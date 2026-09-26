@@ -1,1 +1,0 @@
-[{"title":"Dry-run signal","link":"https://example.com/dry-run","domain_scores":{"architecture":8,"regulation":6,"ai":7},"combined_score":15},{"title":"Dry-run second signal","link":"https://example.com/dry-run-2","domain_scores":{"architecture":4,"regulation":9,"ai":8},"combined_score":17}]
