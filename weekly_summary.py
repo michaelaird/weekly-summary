@@ -465,7 +465,16 @@ class ArticleAnalyzer:
         if not self.should_use_live_model():
             return score_articles_by_heuristic(articles, config=self.config)
 
-        def score_all() -> list[dict]:
+        # Batch configuration
+        batch_size = int(self.config.get("models", {}).get("relevance_batch_size", 8))
+        max_workers = min(3, max(1, (len(articles) + batch_size - 1) // batch_size))
+
+        # Ensure baseline scores exist
+        for article in articles:
+            article["domain_scores"] = {domain: 0 for domain in domain_names}
+            article["combined_score"] = 0
+
+        def _build_prompt_for_batch(batch: list[dict]) -> str:
             prompt = [
                 "You are scoring article relevance for a weekly architecture and banking AI newsletter.",
                 "Assign a score from 0 to 10 for each configured domain and a combined score based on weighted importance.",
@@ -477,65 +486,100 @@ class ArticleAnalyzer:
                 "",
                 "Articles:",
             ]
-
-            for article in articles:
+            for article in batch:
                 prompt.append(
                     json.dumps({
-                        "title": article["title"],
-                        "link": article["link"],
-                        "summary": article["summary"] or article.get("feed_name", ""),
+                        "title": article.get("title", ""),
+                        "link": article.get("link", ""),
+                        "summary": article.get("summary") or article.get("feed_name", ""),
                     }, ensure_ascii=False)
                 )
+            return "\n".join(prompt)
 
-            client = get_anthropic_runtime_client(live=self.live_model_available)
-            response = client.messages.create(
-                model=model_name,
-                max_tokens=max_tokens,
-                system="Score each article for relevance to the configured domains. Be strict and only award high scores when the article meaningfully intersects the domain.",
-                messages=[{"role": "user", "content": "\n".join(prompt)}],
-            )
+        client = get_anthropic_runtime_client(live=self.live_model_available)
 
-            text = "\n".join(block.text for block in response.content if getattr(block, "type", None) == "text")
-            usage = getattr(response, "usage", None)
-            if usage is not None:
-                usage = {
-                    "input_tokens": getattr(usage, "input_tokens", None),
-                    "output_tokens": getattr(usage, "output_tokens", None),
-                    "cache_creation_input_tokens": getattr(usage, "cache_creation_input_tokens", None),
-                    "cache_read_input_tokens": getattr(usage, "cache_read_input_tokens", None),
-                }
+        def _score_batch(batch: list[dict], batch_index: int) -> list[dict] | None:
+            content = _build_prompt_for_batch(batch)
+            attempts = 3
+            backoff = 1.0
+            for attempt in range(1, attempts + 1):
+                try:
+                    response = client.messages.create(
+                        model=model_name,
+                        max_tokens=max_tokens,
+                        system="Score each article for relevance to the configured domains. Be strict and only award high scores when the article meaningfully intersects the domain.",
+                        messages=[{"role": "user", "content": content}],
+                    )
 
-            record_model_usage("relevance_score", model_name, usage, max_tokens=max_tokens)
-            write_debug_response_to_file(
-                "anthropic_relevance_single_pass",
-                text,
-                stop_reason=getattr(response, "stop_reason", None),
-                usage=usage,
-            )
-            return extract_json_array_from_text(text)
+                    text = "\n".join(block.text for block in response.content if getattr(block, "type", None) == "text")
+                    usage = getattr(response, "usage", None)
+                    if usage is not None:
+                        usage = {
+                            "input_tokens": getattr(usage, "input_tokens", None),
+                            "output_tokens": getattr(usage, "output_tokens", None),
+                        }
+                    record_model_usage(f"relevance_score_batch_{batch_index}", model_name, usage, max_tokens=max_tokens)
+                    write_debug_response_to_file(f"anthropic_relevance_batch_{batch_index}", text, stop_reason=getattr(response, "stop_reason", None), usage=usage)
+                    try:
+                        parsed = extract_json_array_from_text(text)
+                        return parsed
+                    except Exception as exc:
+                        print(f"  ✗ Malformed model response for batch {batch_index}: {exc}")
+                        return None
 
-        for article in articles:
-            article["domain_scores"] = {domain: 0 for domain in domain_names}
-            article["combined_score"] = 0
+                except Exception as exc:
+                    msg = str(exc).lower()
+                    if attempt < attempts and ("rate" in msg or "429" in msg or "throttle" in msg):
+                        print(f"  ⚠️ Rate-limited scoring batch {batch_index}, retrying in {backoff}s...")
+                        import time
 
-        try:
-            scored_results = score_all()
-        except Exception:
-            return score_articles_by_heuristic(articles, config=self.config)
+                        time.sleep(backoff)
+                        backoff *= 2
+                        continue
+                    print(f"  ✗ Error scoring batch {batch_index}: {exc}")
+                    return None
 
-        for result in scored_results:
-            link = result.get("link")
-            article = next((item for item in articles if item.get("link") == link), None)
-            if article is None:
-                continue
+        # Partition articles into batches
+        batches: list[list[dict]] = [articles[i : i + batch_size] for i in range(0, len(articles), batch_size)]
 
-            domain_scores = {}
-            for domain in domain_names:
-                score = result.get("domain_scores", {}).get(domain, 0)
-                domain_scores[domain] = max(0, min(10, int(score)))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+            future_map = {ex.submit(_score_batch, batch, idx): (idx, batch) for idx, batch in enumerate(batches, start=1)}
+            for fut in concurrent.futures.as_completed(future_map):
+                idx, batch = future_map[fut]
+                try:
+                    result = fut.result()
+                except Exception as exc:
+                    print(f"  ✗ Unexpected error scoring batch {idx}: {exc}")
+                    result = None
 
-            article["domain_scores"] = domain_scores
-            article["combined_score"] = sum(domain_scores.get(domain, 0) * weights.get(domain, 1) for domain in domain_names)
+                if not result:
+                    # Fallback: apply heuristic scoring for this batch only
+                    print(f"  → Falling back to heuristic scoring for batch {idx}")
+                    fallback = score_articles_by_heuristic(batch, config=self.config)
+                    for fb in fallback:
+                        link = fb.get("link")
+                        article = next((a for a in articles if a.get("link") == link), None)
+                        if not article:
+                            continue
+                        article["domain_scores"] = fb.get("domain_scores", article.get("domain_scores", {}))
+                        article["combined_score"] = fb.get("combined_score", article.get("combined_score", 0))
+                    continue
+
+                # Map model results back to articles
+                for item in result:
+                    link = item.get("link")
+                    article = next((a for a in articles if a.get("link") == link), None)
+                    if not article:
+                        continue
+                    domain_scores = {}
+                    for domain in domain_names:
+                        score = item.get("domain_scores", {}).get(domain, 0)
+                        try:
+                            domain_scores[domain] = max(0, min(10, int(score)))
+                        except Exception:
+                            domain_scores[domain] = 0
+                    article["domain_scores"] = domain_scores
+                    article["combined_score"] = sum(domain_scores.get(domain, 0) * weights.get(domain, 1) for domain in domain_names)
 
         return articles
 
