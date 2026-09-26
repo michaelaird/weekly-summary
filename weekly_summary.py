@@ -740,56 +740,80 @@ def select_relevant_articles(articles: list[dict], threshold: int | None = None,
     max_combined = max_combined if max_combined is not None else int(selection_config.get("max_combined_articles", 8))
 
     domain_names = [domain["name"] for domain in config.get("domains", [])]
+
+    # Deterministic selection helpers — include stable tie-breakers (title, link)
+    def _sort_key_for_domain(item: dict, domain: str):
+        return (
+            int(item.get("domain_scores", {}).get(domain, 0)),
+            int(item.get("combined_score", 0)),
+            item.get("title", ""),
+            item.get("link", ""),
+        )
+
+    def _sort_key_combined(item: dict):
+        domain_max = max(item.get("domain_scores", {}).values() or [0])
+        return (
+            int(item.get("combined_score", 0)),
+            int(domain_max),
+            item.get("title", ""),
+            item.get("link", ""),
+        )
+
     selected: list[dict] = []
-    seen_links = set()
+    seen_links: set[str] = set()
+    selection_per_domain: dict[str, list[str]] = {d: [] for d in domain_names}
 
-    # 1) Preserve the highest-scoring article(s) for each domain before considering overall combined rank.
+    # 1) Pick the top `per_domain_top` articles for each domain (deduplicated deterministically).
     for domain in domain_names:
-        ranked = sorted(
-            articles,
-            key=lambda item: (
-                item.get("domain_scores", {}).get(domain, 0),
-                item.get("combined_score", 0),
-            ),
-            reverse=True,
-        )
-        for article in ranked[:per_domain_top]:
-            if article.get("link") not in seen_links:
-                selected.append(article)
-                seen_links.add(article.get("link"))
-
-    # 2) Fill out remaining slots with the highest combined-score articles that are still distinct.
-    remaining_slots = max(0, max_combined - len(selected))
-    if remaining_slots > 0:
-        combined_ranked = sorted(
-            [article for article in articles if article.get("link") not in seen_links and article.get("combined_score", 0) >= threshold],
-            key=lambda item: (
-                item.get("combined_score", 0),
-                max(item.get("domain_scores", {}).values() or [0]),
-            ),
-            reverse=True,
-        )
-        for article in combined_ranked[:remaining_slots]:
-            if article.get("link") not in seen_links:
-                selected.append(article)
-                seen_links.add(article.get("link"))
-
-    # 3) If more slots remain, fill with the highest-scoring distinct articles even if they sit just below threshold.
-    if len(selected) < max_combined:
-        fallback_ranked = sorted(
-            [article for article in articles if article.get("link") not in seen_links],
-            key=lambda item: (
-                item.get("combined_score", 0),
-                max(item.get("domain_scores", {}).values() or [0]),
-            ),
-            reverse=True,
-        )
-        for article in fallback_ranked:
-            if article.get("link") not in seen_links:
-                selected.append(article)
-                seen_links.add(article.get("link"))
+        ranked = sorted(articles, key=lambda it: _sort_key_for_domain(it, domain), reverse=True)
+        for article in ranked:
+            if len(selection_per_domain[domain]) >= per_domain_top:
+                break
+            link = article.get("link")
+            if not link or link in seen_links:
+                continue
+            selected.append(article)
+            seen_links.add(link)
+            selection_per_domain[domain].append(link)
             if len(selected) >= max_combined:
                 break
+        if len(selected) >= max_combined:
+            break
+
+    # 2) Fill remaining slots with highest combined-score articles above threshold.
+    remaining = max(0, max_combined - len(selected))
+    if remaining > 0:
+        candidates = [a for a in articles if a.get("link") not in seen_links and int(a.get("combined_score", 0)) >= int(threshold)]
+        combined_ranked = sorted(candidates, key=_sort_key_combined, reverse=True)
+        for article in combined_ranked:
+            if remaining <= 0:
+                break
+            link = article.get("link")
+            if not link or link in seen_links:
+                continue
+            selected.append(article)
+            seen_links.add(link)
+            remaining -= 1
+
+    # 3) If still under quota, fill with highest combined-score distinct articles (fallback).
+    if len(selected) < max_combined:
+        candidates = [a for a in articles if a.get("link") not in seen_links]
+        fallback_ranked = sorted(candidates, key=_sort_key_combined, reverse=True)
+        for article in fallback_ranked:
+            if len(selected) >= max_combined:
+                break
+            link = article.get("link")
+            if not link or link in seen_links:
+                continue
+            selected.append(article)
+            seen_links.add(link)
+
+    # For debugging and deterministic traceability, print selection map
+    try:
+        mapping = {d: selection_per_domain.get(d, []) for d in domain_names}
+        print(f"Selected per-domain mapping: {json.dumps(mapping)}")
+    except Exception:
+        pass
 
     return selected
 
