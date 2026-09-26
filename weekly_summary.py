@@ -890,13 +890,39 @@ def generate_deep_analysis(articles: list[dict], config: dict | None = None, *, 
 
 
 def enrich_selected_articles(articles: list[dict]) -> list[dict]:
-    """Fetch and attach full text to the selected candidates for the deep-analysis stage."""
-    enriched: list[dict] = []
-    for article in articles:
+    """Fetch and attach full text to the selected candidates for the deep-analysis stage.
+
+    Runs fetches in a bounded thread pool and falls back to the summary text on failures.
+    Returns a list of enriched article records in the same order as the input list.
+    """
+    if not articles:
+        return []
+
+    max_workers = min(4, max(1, len(articles)))
+
+    def _enrich_one(article: dict) -> dict:
         record = dict(article)
         fallback_text = record.get("summary") or record.get("title") or ""
-        record["full_text"] = fetch_article_content(record.get("link", ""), fallback_text)
-        enriched.append(record)
+        try:
+            full = fetch_article_content(record.get("link", ""), fallback_text)
+            if not full or not full.strip():
+                full = fallback_text
+        except Exception:
+            full = fallback_text
+        # Cap to safe size for downstream LLM use
+        record["full_text"] = full[:15000]
+        return record
+
+    enriched: list[dict] = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+        # submit tasks preserving input order via enumeration
+        futures = [ex.submit(_enrich_one, a) for a in articles]
+        for fut in concurrent.futures.as_completed(futures):
+            # collect as they finish; we'll reorder to input order below
+            pass
+        # Reconstruct results in original order
+        enriched = [f.result() for f in futures]
+
     return enriched
 
 
