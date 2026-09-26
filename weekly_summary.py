@@ -19,7 +19,7 @@ from bs4 import BeautifulSoup
 from jinja2 import Environment, FileSystemLoader
 from markupsafe import Markup
 
-from runtime_adapters import build_anthropic_client, create_email_sender
+from runtime_adapters import RuntimePolicy, build_anthropic_client, create_email_sender
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -163,8 +163,7 @@ def get_cc_email() -> str:
 
 
 def should_send_email() -> bool:
-    value = os.environ.get("DRY_RUN", "0").strip().lower()
-    return value not in {"1", "true", "yes", "y", "on"}
+    return RuntimePolicy.from_environment().should_send_email()
 
 
 def get_credentials_file_path() -> Path:
@@ -182,54 +181,19 @@ def read_credentials_file() -> dict:
 
 
 def can_use_live_anthropic() -> bool:
-    if not should_send_email():
-        return False
-
-    def looks_like_placeholder(value: str | None) -> bool:
-        if not value:
-            return False
-        lowered = value.strip().lower()
-        return lowered.startswith("dummy-") or "dry-run" in lowered or "example.com" in lowered
-
-    env_key = os.environ.get("ANTHROPIC_API_KEY")
-    if env_key and env_key.strip() and not looks_like_placeholder(env_key):
-        return True
-
-    creds = read_credentials_file()
-    api_key = creds.get("ANTHROPIC_API_KEY") or creds.get("anthropic_api_key")
-    if api_key and api_key.strip() and not looks_like_placeholder(api_key):
-        return True
-
-    return False
+    return RuntimePolicy.from_environment().can_use_live_anthropic()
 
 
 def get_anthropic_api_key() -> str:
-    def looks_like_placeholder(value: str | None) -> bool:
-        if not value:
-            return False
-        lowered = value.strip().lower()
-        return lowered.startswith("dummy-") or "dry-run" in lowered or "example.com" in lowered
-
-    env_key = os.environ.get("ANTHROPIC_API_KEY")
-    if env_key and env_key.strip() and not looks_like_placeholder(env_key):
-        return env_key.strip()
-
-    creds = read_credentials_file()
-    api_key = creds.get("ANTHROPIC_API_KEY") or creds.get("anthropic_api_key")
-    if api_key and api_key.strip() and not looks_like_placeholder(api_key):
-        return api_key.strip()
-
-    if can_use_live_anthropic():
-        return require_env("ANTHROPIC_API_KEY")
-
-    return "dummy-anthropic-key-for-dry-run"
+    return RuntimePolicy.from_environment().get_anthropic_api_key()
 
 
 def get_anthropic_runtime_client(*, live: bool | None = None):
-    runtime_live = should_send_email() if live is None else bool(live)
-    if runtime_live and not can_use_live_anthropic():
+    policy = RuntimePolicy.from_environment()
+    runtime_live = policy.is_live if live is None else bool(live)
+    if runtime_live and not policy.can_use_live_anthropic():
         runtime_live = False
-    return build_anthropic_client(BASE_DIR, live=runtime_live, api_key=get_anthropic_api_key())
+    return build_anthropic_client(BASE_DIR, live=runtime_live, api_key=policy.get_anthropic_api_key(), policy=policy)
 
 
 def write_debug_response_to_file(label: str, payload: str, *, stop_reason: str | None = None, usage: dict | None = None) -> Path:
@@ -423,8 +387,9 @@ class ArticleAnalyzer:
 
     def __init__(self, config: dict | None = None, *, use_live_model: bool | None = None):
         self.config = config or load_domain_config()
-        self.use_live_model = should_send_email() if use_live_model is None else bool(use_live_model)
-        self.live_model_available = self.use_live_model and can_use_live_anthropic()
+        self.runtime_policy = RuntimePolicy.from_environment()
+        self.use_live_model = self.runtime_policy.should_send_email() if use_live_model is None else bool(use_live_model)
+        self.live_model_available = self.use_live_model and self.runtime_policy.can_use_live_anthropic()
 
     def should_use_live_model(self) -> bool:
         return bool(self.live_model_available)

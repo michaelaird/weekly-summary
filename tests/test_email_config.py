@@ -251,7 +251,7 @@ class EmailConfigTests(unittest.TestCase):
         from datetime import datetime
         from pathlib import Path
 
-        import anthropic
+        import runtime_adapters
         import weekly_summary
 
         os.environ["DRY_RUN"] = "1"
@@ -281,7 +281,13 @@ class EmailConfigTests(unittest.TestCase):
                     "summary": article["summary"] or article.get("feed_name", ""),
                 }, ensure_ascii=False))
 
-            client = anthropic.Anthropic(api_key=weekly_summary.get_anthropic_api_key())
+            policy = runtime_adapters.RuntimePolicy.from_environment()
+            client = runtime_adapters.build_anthropic_client(
+                Path(weekly_summary.BASE_DIR),
+                live=policy.is_live,
+                api_key=policy.get_anthropic_api_key(),
+                policy=policy,
+            )
             response = client.messages.create(
                 model=model_name,
                 max_tokens=max_tokens,
