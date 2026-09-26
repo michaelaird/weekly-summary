@@ -16,6 +16,7 @@
 - Signal 8: LLM "Memory" Is an Undocumented Application Boundary, Not a Model Feature
 - Signal 9: Nine of the Industry's Standard AI Benchmarks Have Grading Defects
 - Signal 10: RAG Accuracy Hinges on Chunking Decisions Nobody Documents
+
 ## Week of September 26, 2026
 - Signal 1: An AI Agent Breached a Government Portal — Who Files the Incident Report?
 - Signal 2: Full-Duplex Voice AI Breaks the Turn-Based Assumptions Your Call Recording Stack Is Built On
@@ -24,3 +25,12 @@
 - Signal 5: Agents Now Get Entra IDs, Email Addresses, and Org Chart Seats — Identity Governance Has a New Headcount Category
 - Signal 6: NatWest's Voice Banking Trial Is the Consent Question Canadian Banks Haven't Answered Yet
 - Signal 7: Data Lifecycle Design Is the Unsung Backbone of Privacy Compliance — and Nobody Maps It
+## Week of September 26, 2026
+- Signal 1: The Agent Orchestration Layer Just Became a Vendor Lock-In Battleground
+- Signal 2: Agentic Traffic Is Defeating Security Controls Built for Human Attackers
+- Signal 3: Evidence Chain-of-Custody Becomes an AI Governance Battleground
+- Signal 4: When a Credit Score Lies, Who's Accountable for the Architecture?
+- Signal 5: AI Vendor Access Is Becoming a Geopolitical Risk Variable
+- Signal 6: Superintelligence Scenario Planning Is Quietly Shaping Model Risk Doctrine
+- Signal 7: Realistic-Workflow Benchmarks Are Exposing a "Knows vs. Navigates" AI Gap
+- Signal 8: Org Charts Assume a Human at Every Node — Copilot Just Broke That
