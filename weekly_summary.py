@@ -13,6 +13,7 @@ from email.mime.text import MIMEText
 from pathlib import Path
 
 import feedparser
+import concurrent.futures
 import markdown2
 import requests
 from bs4 import BeautifulSoup
@@ -284,45 +285,102 @@ def render_prompt_template(filename: str, *, config: dict | None = None, previou
 
 # ── Feed aggregation ──────────────────────────────────────────────────────────
 
+def _parse_entry_published(entry) -> datetime:
+    try:
+        if hasattr(entry, "published_parsed") and entry.published_parsed:
+            return datetime(*entry.published_parsed[:6])
+        if hasattr(entry, "updated_parsed") and entry.updated_parsed:
+            return datetime(*entry.updated_parsed[:6])
+        # fallback: try parsing a textual published field
+        published_text = entry.get("published") or entry.get("updated")
+        if published_text:
+            try:
+                return datetime.fromisoformat(published_text)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return datetime.now()
+
+
+def _normalize_entry(entry, feed_config: dict, cutoff_date: datetime) -> dict | None:
+    pub_date = _parse_entry_published(entry)
+    if pub_date <= cutoff_date:
+        return None
+
+    title = entry.get("title", "No title")
+    link = entry.get("link") or entry.get("id") or "#"
+    summary = (entry.get("summary") or entry.get("description") or "")
+    try:
+        summary = BeautifulSoup(summary, "html.parser").get_text(" ", strip=True)
+    except Exception:
+        summary = re.sub(r"\s+", " ", str(summary))
+    summary = re.sub(r"\s+", " ", summary)[:200].strip()
+
+    return {
+        "title": title,
+        "link": link,
+        "summary": summary,
+        "feed_name": feed_config["name"],
+        "category": feed_config.get("category"),
+        "published": pub_date,
+    }
+
+
+def _fetch_and_normalize_feed(feed_config: dict, cutoff_date: datetime, *, max_entries: int = 5, timeout: int = 10, max_retries: int = 2) -> list[dict]:
+    headers = {"User-Agent": "WeeklySummaryBot/1.0 (+https://example.com)"}
+    last_exc: Exception | None = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            print(f"  Fetching {feed_config['name']} (attempt {attempt})...")
+            resp = requests.get(feed_config["url"], timeout=timeout, headers=headers, allow_redirects=True)
+            resp.raise_for_status()
+            feed = feedparser.parse(resp.content)
+            break
+        except Exception as exc:
+            last_exc = exc
+            if attempt < max_retries:
+                continue
+            print(f"  ✗ Error fetching {feed_config['name']}: {exc}")
+            return []
+
+    if not getattr(feed, "entries", None):
+        print(f"    → No entries found for {feed_config['name']}")
+        return []
+
+    articles: list[dict] = []
+    for entry in feed.entries[:max_entries]:
+        try:
+            record = _normalize_entry(entry, feed_config, cutoff_date)
+            if record:
+                articles.append(record)
+        except Exception as exc:
+            print(f"    ✗ Skipping malformed entry from {feed_config['name']}: {exc}")
+            continue
+
+    return articles
+
+
 def fetch_feed_articles(days_back: int = 7) -> list[dict]:
-    """Return recent feed entries with title, link, summary, and source metadata."""
+    """Return recent feed entries with title, link, summary, and source metadata.
+
+    This implementation fetches feeds in parallel using a bounded thread pool,
+    normalizes entries, and applies per-feed timeout/retry guards.
+    """
     cutoff_date = datetime.now() - timedelta(days=days_back)
     articles: list[dict] = []
 
-    for feed_config in FEEDS:
-        try:
-            print(f"  Fetching {feed_config['name']}...")
-            feed = feedparser.parse(feed_config["url"])
-
-            if not feed.entries:
-                print(f"    → No entries found")
-                continue
-
-            for entry in feed.entries[:5]:
-                try:
-                    pub_date = datetime(*entry.published_parsed[:6]) if hasattr(entry, 'published_parsed') else datetime.now()
-                except Exception:
-                    pub_date = datetime.now()
-
-                if pub_date <= cutoff_date:
-                    continue
-
-                title = entry.get('title', 'No title')
-                link = entry.get('link', '#')
-                summary = (entry.get('summary') or entry.get('description') or '')
-                summary = re.sub(r"\s+", " ", summary)[:200].strip()
-
-                articles.append({
-                    "title": title,
-                    "link": link,
-                    "summary": summary,
-                    "feed_name": feed_config["name"],
-                    "category": feed_config["category"],
-                    "published": pub_date,
-                })
-
-        except Exception as e:
-            print(f"  ✗ Error fetching {feed_config['name']}: {e}")
+    max_workers = min(6, max(2, len(FEEDS)))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futures = {ex.submit(_fetch_and_normalize_feed, fc, cutoff_date): fc for fc in FEEDS}
+        for fut in concurrent.futures.as_completed(futures):
+            try:
+                result = fut.result()
+                if result:
+                    articles.extend(result)
+            except Exception as exc:
+                cfg = futures.get(fut) or {}
+                print(f"  ✗ Unexpected error processing {cfg.get('name', '<unknown>')}: {exc}")
 
     return articles
 
