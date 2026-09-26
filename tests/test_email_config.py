@@ -211,13 +211,23 @@ class EmailConfigTests(unittest.TestCase):
 
         self.assertEqual(
             pipeline["stage_order"],
-            ["fetch", "score", "select", "enrich", "analyze"],
+            ["fetch", "score", "select", "enrich", "analyze", "email", "history"],
         )
         self.assertIn("raw_articles", pipeline)
         self.assertIn("scored_articles", pipeline)
         self.assertIn("selected_articles", pipeline)
         self.assertIn("enriched_articles", pipeline)
         self.assertIn("summary_md", pipeline)
+
+    def test_runtime_adapters_can_swap_external_dependencies(self):
+        import runtime_adapters
+
+        anthropic_client = runtime_adapters.build_anthropic_client(__import__("pathlib").Path(__import__("weekly_summary").BASE_DIR), live=False)
+        response = anthropic_client.messages.create(model="test-model", max_tokens=128, messages=[{"role": "user", "content": "Articles:"}])
+        self.assertIn("Dry-run", response.content[0].text)
+
+        email_client = runtime_adapters.create_email_sender(live=False)
+        self.assertTrue(hasattr(email_client, "send"))
 
     def test_prune_signal_history_removes_entries_older_than_90_days(self):
         import weekly_summary

@@ -11,15 +11,15 @@ from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
-from types import SimpleNamespace
 
-import anthropic
 import feedparser
 import markdown2
 import requests
 from bs4 import BeautifulSoup
 from jinja2 import Environment, FileSystemLoader
 from markupsafe import Markup
+
+from runtime_adapters import build_anthropic_client, create_email_sender
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -225,55 +225,11 @@ def get_anthropic_api_key() -> str:
     return "dummy-anthropic-key-for-dry-run"
 
 
-def install_dry_run_anthropic_stub() -> None:
-    """Swap in a deterministic fake Anthropic client so tests and dry runs do not hit the network."""
-    original = anthropic.Anthropic
-
-    class DryRunMessages:
-        def create(self, **kwargs):
-            messages = kwargs.get("messages") or []
-            prompt_text = ""
-            if messages:
-                first_message = messages[0]
-                if isinstance(first_message, dict):
-                    prompt_text = str(first_message.get("content", ""))
-                else:
-                    prompt_text = str(getattr(first_message, "get", lambda *args, **kwargs: "")("content", ""))
-
-            text = (
-                "["
-                "{\"title\":\"Dry-run signal\",\"link\":\"https://example.com/dry-run\",\"domain_scores\":{\"architecture\":8,\"regulation\":6,\"ai\":7},\"combined_score\":15},"
-                "{\"title\":\"Dry-run second signal\",\"link\":\"https://example.com/dry-run-2\",\"domain_scores\":{\"architecture\":4,\"regulation\":9,\"ai\":8},\"combined_score\":17}"
-                "]"
-                if "Articles:" in prompt_text
-                else "[\n  {\"title\":\"Dry-run summary\",\"link\":\"https://example.com/dry-run\",\"domain_scores\":{\"architecture\":8,\"regulation\":6,\"ai\":7},\"combined_score\":15}\n]"
-            )
-            usage = SimpleNamespace(
-                input_tokens=128,
-                output_tokens=96,
-                cache_creation_input_tokens=0,
-                cache_read_input_tokens=0,
-            )
-            return SimpleNamespace(
-                content=[SimpleNamespace(type="text", text=text)],
-                stop_reason="end_turn",
-                usage=usage,
-            )
-
-    class DryRunAnthropic:
-        def __init__(self, *args, **kwargs):
-            self.messages = DryRunMessages()
-
-    def factory(*args, **kwargs):
-        if can_use_live_anthropic():
-            return original(*args, **kwargs)
-        return DryRunAnthropic(*args, **kwargs)
-
-    anthropic._weekly_summary_dry_run_stubbed = True
-    anthropic.Anthropic = factory
-
-
-install_dry_run_anthropic_stub()
+def get_anthropic_runtime_client(*, live: bool | None = None):
+    runtime_live = should_send_email() if live is None else bool(live)
+    if runtime_live and not can_use_live_anthropic():
+        runtime_live = False
+    return build_anthropic_client(BASE_DIR, live=runtime_live, api_key=get_anthropic_api_key())
 
 
 def write_debug_response_to_file(label: str, payload: str, *, stop_reason: str | None = None, usage: dict | None = None) -> Path:
@@ -462,52 +418,152 @@ def score_articles_by_heuristic(articles: list[dict], config: dict | None = None
     return articles
 
 
-def score_articles_by_relevance(articles: list[dict], config: dict | None = None, *, use_live_model: bool = False) -> list[dict]:
-    """Use a low-cost Anthropic model to assign domain relevance scores to each article."""
-    if not articles:
-        return []
+class ArticleAnalyzer:
+    """Encapsulates runtime policy for model-backed article analysis and heuristic fallback."""
 
-    config = config or load_domain_config()
-    domain_defs = config.get("domains", [])
-    domain_names = [domain["name"] for domain in domain_defs]
-    weights = {domain["name"]: int(domain.get("weight", 1)) for domain in domain_defs}
-    model_name = resolve_model_name(config.get("models", {}).get("relevance_model", "claude-haiku-4-5"))
-    max_tokens = int(config.get("models", {}).get("relevance_max_tokens", 10000))
+    def __init__(self, config: dict | None = None, *, use_live_model: bool | None = None):
+        self.config = config or load_domain_config()
+        self.use_live_model = should_send_email() if use_live_model is None else bool(use_live_model)
+        self.live_model_available = self.use_live_model and can_use_live_anthropic()
 
-    if not use_live_model:
-        return score_articles_by_heuristic(articles, config=config)
+    def should_use_live_model(self) -> bool:
+        return bool(self.live_model_available)
 
-    def score_all() -> list[dict]:
-        prompt = [
-            "You are scoring article relevance for a weekly architecture and banking AI newsletter.",
-            "Assign a score from 0 to 10 for each configured domain and a combined score based on weighted importance.",
-            "Return valid JSON only with this shape:",
-            "[{\"title\": \"...\", \"link\": \"...\", \"domain_scores\": {\"architecture\": 0, \"regulation\": 0, \"ai\": 0}, \"combined_score\": 0}]",
-            "",
-            "Configured domains:",
-            json.dumps(domain_names, indent=2),
-            "",
-            "Articles:",
-        ]
+    def score_articles(self, articles: list[dict]) -> list[dict]:
+        if not articles:
+            return []
 
-        for article in articles:
-            prompt.append(
-                json.dumps({
-                    "title": article["title"],
-                    "link": article["link"],
-                    "summary": article["summary"] or article.get("feed_name", ""),
-                }, ensure_ascii=False)
+        domain_defs = self.config.get("domains", [])
+        domain_names = [domain["name"] for domain in domain_defs]
+        weights = {domain["name"]: int(domain.get("weight", 1)) for domain in domain_defs}
+        model_name = resolve_model_name(self.config.get("models", {}).get("relevance_model", "claude-haiku-4-5"))
+        max_tokens = int(self.config.get("models", {}).get("relevance_max_tokens", 10000))
+
+        if not self.should_use_live_model():
+            return score_articles_by_heuristic(articles, config=self.config)
+
+        def score_all() -> list[dict]:
+            prompt = [
+                "You are scoring article relevance for a weekly architecture and banking AI newsletter.",
+                "Assign a score from 0 to 10 for each configured domain and a combined score based on weighted importance.",
+                "Return valid JSON only with this shape:",
+                "[{\"title\": \"...\", \"link\": \"...\", \"domain_scores\": {\"architecture\": 0, \"regulation\": 0, \"ai\": 0}, \"combined_score\": 0}]",
+                "",
+                "Configured domains:",
+                json.dumps(domain_names, indent=2),
+                "",
+                "Articles:",
+            ]
+
+            for article in articles:
+                prompt.append(
+                    json.dumps({
+                        "title": article["title"],
+                        "link": article["link"],
+                        "summary": article["summary"] or article.get("feed_name", ""),
+                    }, ensure_ascii=False)
+                )
+
+            client = get_anthropic_runtime_client(live=self.live_model_available)
+            response = client.messages.create(
+                model=model_name,
+                max_tokens=max_tokens,
+                system="Score each article for relevance to the configured domains. Be strict and only award high scores when the article meaningfully intersects the domain.",
+                messages=[{"role": "user", "content": "\n".join(prompt)}],
             )
 
-        client = anthropic.Anthropic(api_key=get_anthropic_api_key())
+            text = "\n".join(block.text for block in response.content if getattr(block, "type", None) == "text")
+            usage = getattr(response, "usage", None)
+            if usage is not None:
+                usage = {
+                    "input_tokens": getattr(usage, "input_tokens", None),
+                    "output_tokens": getattr(usage, "output_tokens", None),
+                    "cache_creation_input_tokens": getattr(usage, "cache_creation_input_tokens", None),
+                    "cache_read_input_tokens": getattr(usage, "cache_read_input_tokens", None),
+                }
+
+            record_model_usage("relevance_score", model_name, usage, max_tokens=max_tokens)
+            write_debug_response_to_file(
+                "anthropic_relevance_single_pass",
+                text,
+                stop_reason=getattr(response, "stop_reason", None),
+                usage=usage,
+            )
+            return extract_json_array_from_text(text)
+
+        for article in articles:
+            article["domain_scores"] = {domain: 0 for domain in domain_names}
+            article["combined_score"] = 0
+
+        try:
+            scored_results = score_all()
+        except Exception:
+            return score_articles_by_heuristic(articles, config=self.config)
+
+        for result in scored_results:
+            link = result.get("link")
+            article = next((item for item in articles if item.get("link") == link), None)
+            if article is None:
+                continue
+
+            domain_scores = {}
+            for domain in domain_names:
+                score = result.get("domain_scores", {}).get(domain, 0)
+                domain_scores[domain] = max(0, min(10, int(score)))
+
+            article["domain_scores"] = domain_scores
+            article["combined_score"] = sum(domain_scores.get(domain, 0) * weights.get(domain, 1) for domain in domain_names)
+
+        return articles
+
+    def generate_deep_analysis(self, articles: list[dict]) -> str:
+        if not articles:
+            return "No deeply relevant articles selected for analysis."
+
+        if not self.should_use_live_model():
+            return generate_relevance_summary(articles, self.config)
+
+        model_name = resolve_model_name(self.config.get("models", {}).get("deep_analysis_model", "claude-sonnet-5"))
+        max_tokens = int(self.config.get("models", {}).get("deep_max_tokens", 10000))
+
+        article_sections = []
+        for index, article in enumerate(articles, 1):
+            fallback_text = article.get("summary") or article.get("title") or ""
+            content = article.get("full_text") or fetch_article_content(article["link"], fallback_text)
+            article_sections.append(
+                f"## Article {index}: {article['title']}\n"
+                f"URL: {article['link']}\n"
+                f"Scores: {article.get('domain_scores', {})}\n\n"
+                f"{content[:8000]}"
+            )
+
+        system_prompt = render_prompt_template("system.txt", config=self.config)
+        user_prompt = render_prompt_template("user.txt", config=self.config, previous_signals=load_signal_history())
+
+        relevance_summary = generate_relevance_summary(articles, self.config)
+        user_message = f"""
+{relevance_summary}
+
+{user_prompt}
+
+Previous weeks' signals to avoid:
+{load_signal_history()}
+
+---
+
+## Selected articles for deep analysis
+
+{chr(10).join(article_sections)}
+"""
+
+        client = get_anthropic_runtime_client(live=self.live_model_available)
         response = client.messages.create(
             model=model_name,
             max_tokens=max_tokens,
-            system="Score each article for relevance to the configured domains. Be strict and only award high scores when the article meaningfully intersects the domain.",
-            messages=[{"role": "user", "content": "\n".join(prompt)}],
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_message}],
         )
 
-        text = "\n".join(block.text for block in response.content if getattr(block, "type", None) == "text")
         usage = getattr(response, "usage", None)
         if usage is not None:
             usage = {
@@ -516,45 +572,97 @@ def score_articles_by_relevance(articles: list[dict], config: dict | None = None
                 "cache_creation_input_tokens": getattr(usage, "cache_creation_input_tokens", None),
                 "cache_read_input_tokens": getattr(usage, "cache_read_input_tokens", None),
             }
+        record_model_usage("deep_analysis", model_name, usage, max_tokens=max_tokens)
 
-        record_model_usage(
-            "relevance_score",
-            model_name,
-            usage,
-            max_tokens=max_tokens,
+        text_parts = [block.text for block in response.content if getattr(block, "type", None) == "text"]
+        return "\n\n".join(text_parts).strip()
+
+    def run_stage_pipeline(self, raw_articles: list[dict] | None = None, *, days_back: int | None = None) -> dict:
+        """Run the weekly pipeline as explicit stages with clear data flow between them."""
+        global LAST_SELECTED_ARTICLES
+        stage_order = ["fetch", "score", "select", "enrich", "analyze", "email", "history"]
+
+        pipeline = {
+            "stage_order": stage_order,
+            "raw_articles": list(raw_articles or []),
+            "scored_articles": [],
+            "selected_articles": [],
+            "enriched_articles": [],
+            "summary_md": "",
+            "email_html": "",
+            "signal_titles": [],
+            "run_date": datetime.now().strftime("%B %d, %Y"),
+        }
+
+        if raw_articles is None:
+            print("Stage 1/7: Feed fetch")
+            raw_articles = fetch_feed_articles(days_back=days_back or 7)
+
+        if not raw_articles:
+            print("✗ No feed content fetched. Aborting.")
+            LAST_SELECTED_ARTICLES = []
+            return pipeline
+
+        print("\nStage 2/7: Relevance scoring")
+        scored_articles = self.score_articles(list(raw_articles))
+        pipeline["scored_articles"] = scored_articles
+
+        print("Stage 3/7: Candidate selection")
+        selected = select_relevant_articles(
+            scored_articles,
+            threshold=int(self.config.get("selection", {}).get("combined_threshold", 6)),
+            per_domain_top=int(self.config.get("selection", {}).get("per_domain_top", 3)),
+            max_combined=int(self.config.get("selection", {}).get("max_combined_articles", 8)),
         )
-        write_debug_response_to_file(
-            "anthropic_relevance_single_pass",
-            text,
-            stop_reason=getattr(response, "stop_reason", None),
-            usage=usage,
+        pipeline["selected_articles"] = selected
+        LAST_SELECTED_ARTICLES = selected
+
+        if not selected:
+            print("✗ No articles crossed the relevance threshold.")
+            return pipeline
+
+        print("Stage 4/7: Article enrichment")
+        enriched_articles = enrich_selected_articles(selected)
+        pipeline["enriched_articles"] = enriched_articles
+
+        print("Stage 5/7: Deep analysis")
+        pipeline["summary_md"] = self.generate_deep_analysis(enriched_articles)
+
+        if not pipeline["summary_md"]:
+            return pipeline
+
+        print("Stage 6/7: Email assembly")
+        pipeline["email_html"] = build_email_html(
+            pipeline["summary_md"],
+            pipeline["run_date"],
+            model_usage=get_model_usage_stats(),
+            selected_articles=LAST_SELECTED_ARTICLES,
         )
-        return extract_json_array_from_text(text)
 
-    for article in articles:
-        article["domain_scores"] = {domain: 0 for domain in domain_names}
-        article["combined_score"] = 0
+        if should_send_email():
+            try:
+                print("Sending via Gmail SMTP...")
+                subject = f"🔍 Weekly Signal Scan — Week {datetime.now().isocalendar()[1]} · {pipeline['run_date']}"
+                send_email(subject, pipeline["email_html"])
+            except Exception as exc:
+                print(f"⚠️ Email send skipped because SMTP configuration is unavailable or invalid: {exc}")
+        else:
+            print("DRY_RUN=1: skipping email send")
 
-    try:
-        scored_results = score_all()
-    except Exception:
-        return score_articles_by_heuristic(articles, config=config)
+        print("Stage 7/7: Signal-history update")
+        signal_titles = extract_signal_titles(pipeline["summary_md"])
+        pipeline["signal_titles"] = signal_titles
+        if signal_titles:
+            update_signal_history(pipeline["run_date"], signal_titles)
+        else:
+            print("⚠️  Could not extract signal titles")
 
-    for result in scored_results:
-        link = result.get("link")
-        article = next((item for item in articles if item.get("link") == link), None)
-        if article is None:
-            continue
+        return pipeline
 
-        domain_scores = {}
-        for domain in domain_names:
-            score = result.get("domain_scores", {}).get(domain, 0)
-            domain_scores[domain] = max(0, min(10, int(score)))
 
-        article["domain_scores"] = domain_scores
-        article["combined_score"] = sum(domain_scores.get(domain, 0) * weights.get(domain, 1) for domain in domain_names)
-
-    return articles
+def score_articles_by_relevance(articles: list[dict], config: dict | None = None, *, use_live_model: bool = False) -> list[dict]:
+    """Use a low-cost Anthropic model to assign domain relevance scores to each article."""
+    return ArticleAnalyzer(config=config, use_live_model=use_live_model).score_articles(articles)
 
 
 def select_relevant_articles(articles: list[dict], threshold: int | None = None, per_domain_top: int | None = None, max_combined: int | None = None) -> list[dict]:
@@ -687,67 +795,7 @@ def generate_relevance_summary(articles: list[dict], config: dict | None = None)
 
 def generate_deep_analysis(articles: list[dict], config: dict | None = None, *, use_live_model: bool = False) -> str:
     """Fetch full article content and run a deeper analysis using the premium model."""
-    if not articles:
-        return "No deeply relevant articles selected for analysis."
-
-    config = config or load_domain_config()
-    if not use_live_model:
-        return generate_relevance_summary(articles, config)
-
-    model_name = resolve_model_name(config.get("models", {}).get("deep_analysis_model", "claude-sonnet-5"))
-    max_tokens = int(config.get("models", {}).get("deep_max_tokens", 10000))
-
-    article_sections = []
-    for index, article in enumerate(articles, 1):
-        fallback_text = article.get("summary") or article.get("title") or ""
-        content = article.get("full_text") or fetch_article_content(article["link"], fallback_text)
-        article_sections.append(
-            f"## Article {index}: {article['title']}\n"
-            f"URL: {article['link']}\n"
-            f"Scores: {article.get('domain_scores', {})}\n\n"
-            f"{content[:8000]}"
-        )
-
-    system_prompt = render_prompt_template("system.txt", config=config)
-    user_prompt = render_prompt_template("user.txt", config=config, previous_signals=load_signal_history())
-
-    relevance_summary = generate_relevance_summary(articles, config)
-
-    user_message = f"""
-{relevance_summary}
-
-{user_prompt}
-
-Previous weeks' signals to avoid:
-{load_signal_history()}
-
----
-
-## Selected articles for deep analysis
-
-{chr(10).join(article_sections)}
-"""
-
-    client = anthropic.Anthropic(api_key=get_anthropic_api_key())
-    response = client.messages.create(
-        model=model_name,
-        max_tokens=max_tokens,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_message}],
-    )
-
-    usage = getattr(response, "usage", None)
-    if usage is not None:
-        usage = {
-            "input_tokens": getattr(usage, "input_tokens", None),
-            "output_tokens": getattr(usage, "output_tokens", None),
-            "cache_creation_input_tokens": getattr(usage, "cache_creation_input_tokens", None),
-            "cache_read_input_tokens": getattr(usage, "cache_read_input_tokens", None),
-        }
-    record_model_usage("deep_analysis", model_name, usage, max_tokens=max_tokens)
-
-    text_parts = [block.text for block in response.content if getattr(block, "type", None) == "text"]
-    return "\n\n".join(text_parts).strip()
+    return ArticleAnalyzer(config=config, use_live_model=use_live_model).generate_deep_analysis(articles)
 
 
 def enrich_selected_articles(articles: list[dict]) -> list[dict]:
@@ -761,50 +809,12 @@ def enrich_selected_articles(articles: list[dict]) -> list[dict]:
     return enriched
 
 
-def run_stage_pipeline(raw_articles: list[dict], *, config: dict | None = None, days_back: int | None = None, use_live_model: bool = False) -> dict:
+def run_stage_pipeline(raw_articles: list[dict] | None = None, *, config: dict | None = None, days_back: int | None = None, use_live_model: bool = False) -> dict:
     """Run the weekly pipeline as explicit stages with clear data flow between them."""
-    global LAST_SELECTED_ARTICLES
-    config = config or load_domain_config()
-    stage_order = ["fetch", "score", "select", "enrich", "analyze"]
-    pipeline = {
-        "stage_order": stage_order,
-        "raw_articles": list(raw_articles),
-        "scored_articles": [],
-        "selected_articles": [],
-        "enriched_articles": [],
-        "summary_md": "",
-    }
-
-    if not raw_articles:
-        print("✗ No feed content fetched. Aborting.")
-        LAST_SELECTED_ARTICLES = []
-        return pipeline
-
-    print("\nStage 2/5: Relevance scoring")
-    scored_articles = score_articles_by_relevance(list(raw_articles), config=config, use_live_model=use_live_model)
-    pipeline["scored_articles"] = scored_articles
-
-    print("Stage 3/5: Candidate selection")
-    selected = select_relevant_articles(
-        scored_articles,
-        threshold=int(config.get("selection", {}).get("combined_threshold", 6)),
-        per_domain_top=int(config.get("selection", {}).get("per_domain_top", 3)),
-        max_combined=int(config.get("selection", {}).get("max_combined_articles", 8)),
-    )
-    pipeline["selected_articles"] = selected
-    LAST_SELECTED_ARTICLES = selected
-
-    if not selected:
-        print("✗ No articles crossed the relevance threshold.")
-        return pipeline
-
-    print("Stage 4/5: Article enrichment")
-    enriched_articles = enrich_selected_articles(selected)
-    pipeline["enriched_articles"] = enriched_articles
-
-    print("Stage 5/5: Deep analysis")
-    pipeline["summary_md"] = generate_deep_analysis(enriched_articles, config=config, use_live_model=use_live_model)
-    return pipeline
+    analyzer = ArticleAnalyzer(config=config, use_live_model=use_live_model)
+    if raw_articles is None:
+        return analyzer.run_stage_pipeline(days_back=days_back)
+    return analyzer.run_stage_pipeline(raw_articles, days_back=days_back)
 
 
 # ── Claude signal generation ──────────────────────────────────────────────────
@@ -956,19 +966,12 @@ def send_email(subject: str, html_body: str):
     to_email = get_to_email()
     cc_email = get_cc_email()
 
-    message = MIMEMultipart("alternative")
-    message["to"] = to_email
-    message["from"] = username
-    if cc_email:
-        message["cc"] = cc_email
-    message["subject"] = subject
-    message.attach(MIMEText(html_body, "html"))
+    sender = create_email_sender(live=should_send_email(), username=username, password=app_password, recipient=to_email)
+    result = sender.send(subject, html_body)
 
-    with smtplib.SMTP("smtp.gmail.com", 587) as server:
-        server.ehlo()
-        server.starttls()
-        server.login(username, app_password)
-        server.send_message(message)
+    if result.get("status") == "dry-run":
+        print(f"DRY_RUN: email not sent subject={subject!r} to {to_email}")
+        return
 
     if cc_email:
         print(f"✅ Email sent to {to_email}, CC'd to {cc_email}")
@@ -983,14 +986,12 @@ def run_relevance_and_deep_analysis(days_back: int = 7, *, use_live_model: bool 
     global LAST_SELECTED_ARTICLES
     MODEL_USAGE_STATS.clear()
 
-    print("Stage 1/5: Feed fetch")
-    raw_articles = fetch_feed_articles(days_back=days_back)
     config = load_domain_config()
-    pipeline = run_stage_pipeline(raw_articles, config=config, use_live_model=use_live_model)
+    pipeline = run_stage_pipeline(config=config, days_back=days_back, use_live_model=use_live_model)
 
     selected = pipeline["selected_articles"]
     LAST_SELECTED_ARTICLES = selected
-    if not raw_articles or not selected:
+    if not selected:
         return ""
 
     print(f"Selected {len(selected)} candidate articles for deep analysis.")
@@ -998,37 +999,13 @@ def run_relevance_and_deep_analysis(days_back: int = 7, *, use_live_model: bool 
 
 
 def main():
-    run_date = datetime.now().strftime("%B %d, %Y")
-    week_num = datetime.now().isocalendar()[1]
-    subject = f"🔍 Weekly Signal Scan — Week {week_num} · {run_date}"
-
     print("=== Weekly summary pipeline ===")
-    live_model_mode = should_send_email()
-    print("Stage 1/5: Feed fetch")
-    raw_articles = fetch_feed_articles(days_back=7)
+    MODEL_USAGE_STATS.clear()
     config = load_domain_config()
-    pipeline = run_stage_pipeline(raw_articles, config=config, use_live_model=live_model_mode)
-    summary_md = pipeline["summary_md"]
-    LAST_SELECTED_ARTICLES = pipeline["selected_articles"]
+    pipeline = run_stage_pipeline(config=config, days_back=7, use_live_model=should_send_email())
 
-    if not summary_md:
+    if not pipeline.get("summary_md"):
         return
-
-    if should_send_email():
-        print("Stage 6/6: Email assembly")
-        html = build_email_html(summary_md, run_date, model_usage=get_model_usage_stats(), selected_articles=LAST_SELECTED_ARTICLES)
-
-        print("Sending via Gmail SMTP...")
-        send_email(subject, html)
-    else:
-        print("DRY_RUN=1: skipping email send")
-
-    print("Stage 7/7: Signal-history update")
-    signal_titles = extract_signal_titles(summary_md)
-    if signal_titles:
-        update_signal_history(run_date, signal_titles)
-    else:
-        print("⚠️  Could not extract signal titles")
 
 
 if __name__ == "__main__":
