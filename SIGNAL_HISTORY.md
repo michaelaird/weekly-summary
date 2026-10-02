@@ -25,6 +25,7 @@
 - Signal 5: Agents Now Get Entra IDs, Email Addresses, and Org Chart Seats — Identity Governance Has a New Headcount Category
 - Signal 6: NatWest's Voice Banking Trial Is the Consent Question Canadian Banks Haven't Answered Yet
 - Signal 7: Data Lifecycle Design Is the Unsung Backbone of Privacy Compliance — and Nobody Maps It
+
 ## Week of September 26, 2026
 - Signal 1: The Agent Orchestration Layer Just Became a Vendor Lock-In Battleground
 - Signal 2: Agentic Traffic Is Defeating Security Controls Built for Human Attackers
@@ -34,3 +35,11 @@
 - Signal 6: Superintelligence Scenario Planning Is Quietly Shaping Model Risk Doctrine
 - Signal 7: Realistic-Workflow Benchmarks Are Exposing a "Knows vs. Navigates" AI Gap
 - Signal 8: Org Charts Assume a Human at Every Node — Copilot Just Broke That
+## Week of October 02, 2026
+- Signal 1: The "Decisioning Layer" Is Becoming AI's Missing Middleware
+- Signal 2: AI Credit Scoring Built Directly on Open Banking Rails
+- Signal 3: The "Agent Toolbox" Is Becoming a New API Tier — Built for Machines, Not Humans
+- Signal 4: "Hallucination" Is the Wrong Word — Your Model Risk Framework Needs a Taxonomy for Deception
+- Signal 5: Observability Vendors Are Racing to Own the "Agent Trace" Layer
+- Signal 6: Autonomous Agent Payments Arrive Before the Liability Model Does
+- Signal 7: Agent Testing Needs Its Own "Environment-as-Code" Layer
