@@ -35,6 +35,7 @@
 - Signal 6: Superintelligence Scenario Planning Is Quietly Shaping Model Risk Doctrine
 - Signal 7: Realistic-Workflow Benchmarks Are Exposing a "Knows vs. Navigates" AI Gap
 - Signal 8: Org Charts Assume a Human at Every Node — Copilot Just Broke That
+
 ## Week of October 02, 2026
 - Signal 1: The "Decisioning Layer" Is Becoming AI's Missing Middleware
 - Signal 2: AI Credit Scoring Built Directly on Open Banking Rails
@@ -43,3 +44,9 @@
 - Signal 5: Observability Vendors Are Racing to Own the "Agent Trace" Layer
 - Signal 6: Autonomous Agent Payments Arrive Before the Liability Model Does
 - Signal 7: Agent Testing Needs Its Own "Environment-as-Code" Layer
+## Week of October 03, 2026
+- Signal 1: Agent Containment Is Fusing Security and Model Risk Into One Job
+- Signal 2: Decision-Layer Vendors Are Becoming an Unrecognized Third-Party Risk Category
+- Signal 3: Synthetic Store Simulation Is a Blueprint for Synthetic Banking Rails
+- Signal 4: DoorDash's Agent Toolbox Exposes a Missing Tool Lifecycle Discipline
+- Signal 5: Tokenisation Conviction Is Outrunning Architecture Readiness
