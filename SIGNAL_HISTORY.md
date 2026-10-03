@@ -44,9 +44,19 @@
 - Signal 5: Observability Vendors Are Racing to Own the "Agent Trace" Layer
 - Signal 6: Autonomous Agent Payments Arrive Before the Liability Model Does
 - Signal 7: Agent Testing Needs Its Own "Environment-as-Code" Layer
+
 ## Week of October 03, 2026
 - Signal 1: Agent Containment Is Fusing Security and Model Risk Into One Job
 - Signal 2: Decision-Layer Vendors Are Becoming an Unrecognized Third-Party Risk Category
 - Signal 3: Synthetic Store Simulation Is a Blueprint for Synthetic Banking Rails
 - Signal 4: DoorDash's Agent Toolbox Exposes a Missing Tool Lifecycle Discipline
 - Signal 5: Tokenisation Conviction Is Outrunning Architecture Readiness
+## Week of October 03, 2026
+- Signal 1: Edge Kubernetes Forks Create an Invisible Standards Gap
+- Signal 2: Agent Containment Is Becoming a Five-Layer Control Framework, Not a Tool
+- Signal 3: Agent Forensics Fail Because Nobody Designed for Evidence Retention
+- Signal 4: Agent Payment Rails Are Multiplying Faster Than Any Standard Can Absorb
+- Signal 5: Legacy Modernization-by-LLM Becomes a Board-Level Vendor Bet
+- Signal 6: LLM "Lying" Is a Training Artifact, Not a Testing Gap
+- Signal 7: Decisioning-as-Code Is Becoming Banks' Real AI Moat
+- Signal 8: Claude Code's Mod Ecosystem Creates a Shadow Plugin Supply Chain
