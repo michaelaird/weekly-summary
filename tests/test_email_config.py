@@ -211,13 +211,14 @@ class EmailConfigTests(unittest.TestCase):
 
         self.assertEqual(
             pipeline["stage_order"],
-            ["fetch", "score", "select", "enrich", "analyze", "email", "history"],
+            ["fetch", "score", "select", "enrich", "analyze", "synthesis", "email", "history"],
         )
         self.assertIn("raw_articles", pipeline)
         self.assertIn("scored_articles", pipeline)
         self.assertIn("selected_articles", pipeline)
         self.assertIn("enriched_articles", pipeline)
         self.assertIn("summary_md", pipeline)
+        self.assertIn("architect_lens", pipeline)
 
     def test_runtime_adapters_can_swap_external_dependencies(self):
         import runtime_adapters

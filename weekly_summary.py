@@ -682,10 +682,55 @@ class ArticleAnalyzer:
         final = "\n\n".join(merged).strip()
         return final
 
+    def generate_architect_lens_synthesis(self, summary_md: str) -> str:
+        """Generate cross-article synthesis using architect_lens.txt prompt.
+        
+        Takes the merged per-article markdown summaries and produces a 2-3 paragraph
+        synthesis titled "🧠 Architect's Lens" that draws out meta-patterns,
+        cross-cutting risks, and actionable recommendations.
+        """
+        if not summary_md or not summary_md.strip():
+            return ""
+
+        if not self.should_use_live_model():
+            # Return empty synthesis when live model is not available
+            return ""
+
+        model_name = resolve_model_name(self.config.get("models", {}).get("deep_analysis_model", "claude-sonnet-5"))
+        max_tokens = int(self.config.get("models", {}).get("synthesis_max_tokens", 1500))
+
+        system_prompt = "You are an expert synthesis writer for technical leaders in banking and platform engineering."
+        
+        # Load the architect_lens.txt template and append the per-article analyses
+        template_content = load_prompt("architect_lens.txt")
+        user_message = f"{template_content}\n\n{summary_md}"
+
+        # Use ModelClient for retry/backoff/rate-limit handling
+        response = self.model_client.call_model(
+            system=system_prompt,
+            user_message=user_message,
+            model=model_name,
+            max_tokens=max_tokens,
+            label="architect_lens_synthesis",
+        )
+
+        if response is None:
+            return ""
+
+        # Record usage
+        record_model_usage(
+            "architect_lens_synthesis",
+            model_name,
+            {"input_tokens": response.input_tokens, "output_tokens": response.output_tokens},
+            max_tokens=max_tokens,
+        )
+
+        return response.text.strip()
+
     def run_stage_pipeline(self, raw_articles: list[dict] | None = None, *, days_back: int | None = None) -> dict:
         """Run the weekly pipeline as explicit stages with clear data flow between them."""
         global LAST_SELECTED_ARTICLES
-        stage_order = ["fetch", "score", "select", "enrich", "analyze", "email", "history"]
+        stage_order = ["fetch", "score", "select", "enrich", "analyze", "synthesis", "email", "history"]
 
         pipeline = {
             "stage_order": stage_order,
@@ -694,13 +739,14 @@ class ArticleAnalyzer:
             "selected_articles": [],
             "enriched_articles": [],
             "summary_md": "",
+            "architect_lens": "",
             "email_html": "",
             "signal_titles": [],
             "run_date": datetime.now().strftime("%B %d, %Y"),
         }
 
         if raw_articles is None:
-            print("Stage 1/7: Feed fetch")
+            print("Stage 1/8: Feed fetch")
             raw_articles = fetch_feed_articles(days_back=days_back or 7)
 
         if not raw_articles:
@@ -708,11 +754,11 @@ class ArticleAnalyzer:
             LAST_SELECTED_ARTICLES = []
             return pipeline
 
-        print("\nStage 2/7: Relevance scoring")
+        print("\nStage 2/8: Relevance scoring")
         scored_articles = self.score_articles(list(raw_articles))
         pipeline["scored_articles"] = scored_articles
 
-        print("Stage 3/7: Candidate selection")
+        print("Stage 3/8: Candidate selection")
         selected = select_relevant_articles(
             scored_articles,
             threshold=int(self.config.get("selection", {}).get("combined_threshold", 6)),
@@ -726,20 +772,24 @@ class ArticleAnalyzer:
             print("✗ No articles crossed the relevance threshold.")
             return pipeline
 
-        print("Stage 4/7: Article enrichment")
+        print("Stage 4/8: Article enrichment")
         enriched_articles = enrich_selected_articles(selected)
         pipeline["enriched_articles"] = enriched_articles
 
-        print("Stage 5/7: Deep analysis")
+        print("Stage 5/8: Deep analysis")
         pipeline["summary_md"] = self.generate_deep_analysis(enriched_articles)
 
         if not pipeline["summary_md"]:
             return pipeline
 
-        print("Stage 6/7: Email assembly")
+        print("Stage 6/8: Architect's Lens synthesis")
+        pipeline["architect_lens"] = self.generate_architect_lens_synthesis(pipeline["summary_md"])
+
+        print("Stage 7/8: Email assembly")
         pipeline["email_html"] = build_email_html(
             pipeline["summary_md"],
             pipeline["run_date"],
+            architect_lens=pipeline["architect_lens"],
             model_usage=get_model_usage_stats(),
             selected_articles=LAST_SELECTED_ARTICLES,
         )
@@ -754,7 +804,7 @@ class ArticleAnalyzer:
         else:
             print("DRY_RUN=1: skipping email send")
 
-        print("Stage 7/7: Signal-history update")
+        print("Stage 8/8: Signal-history update")
         signal_titles = extract_signal_titles(pipeline["summary_md"])
         pipeline["signal_titles"] = signal_titles
         if signal_titles:
@@ -1073,7 +1123,7 @@ def update_signal_history(run_date: str, signal_titles: list[str]) -> None:
 
 # ── Email rendering ───────────────────────────────────────────────────────────
 
-def build_email_html(body_md: str, run_date: str, model_usage: list[dict] | None = None, selected_articles: list[dict] | None = None) -> str:
+def build_email_html(body_md: str, run_date: str, architect_lens: str = "", model_usage: list[dict] | None = None, selected_articles: list[dict] | None = None) -> str:
     body_html = markdown2.markdown(
         body_md,
         extras=["fenced-code-blocks", "tables", "strike", "extra", "smarty"]
@@ -1082,6 +1132,17 @@ def build_email_html(body_md: str, run_date: str, model_usage: list[dict] | None
     # Clean up excessive whitespace/newlines that markdown2 sometimes adds
     body_html = re.sub(r'>\s+<', '><', body_html)  # Remove whitespace between tags
     body_html = re.sub(r'\n\n+', '\n', body_html)   # Collapse multiple newlines
+
+    # Convert architect_lens markdown to HTML if provided
+    architect_lens_html = ""
+    if architect_lens and architect_lens.strip():
+        architect_lens_html = markdown2.markdown(
+            architect_lens,
+            extras=["fenced-code-blocks", "tables", "strike", "extra", "smarty"]
+        )
+        architect_lens_html = re.sub(r'>\s+<', '><', architect_lens_html)
+        architect_lens_html = re.sub(r'\n\n+', '\n', architect_lens_html)
+        architect_lens_html = f'<div class="architects-lens">{architect_lens_html}</div>'
 
     relevance_html = ""
     if selected_articles:
@@ -1107,7 +1168,7 @@ def build_email_html(body_md: str, run_date: str, model_usage: list[dict] | None
     template = env.get_template("email.html")
     return template.render(
         run_date=run_date,
-        body_html=Markup(relevance_html + body_html),
+        body_html=Markup(architect_lens_html + relevance_html + body_html),
         model_usage=model_usage or [],
     )
 

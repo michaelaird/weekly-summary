@@ -29,8 +29,6 @@ For each article, use this format:
 
 ---
 
-End with a one-paragraph section titled "🧠 Architect's Lens" that synthesizes the meta-pattern across the article set.
-
 ADDITIONAL REQUIREMENTS:
 - One signal per article, not one signal per arbitrary target count.
 - Preserve the article order when possible, especially for the strongest candidates.
