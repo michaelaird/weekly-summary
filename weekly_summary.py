@@ -31,6 +31,7 @@ PROMPTS_DIR = BASE_DIR / "prompts"
 TEMPLATES_DIR = BASE_DIR / "templates"
 CONFIG_DIR = BASE_DIR / "config"
 DOMAIN_CONFIG_PATH = CONFIG_DIR / "domains.json"
+FEEDS_CONFIG_PATH = CONFIG_DIR / "feeds.json"
 
 DEFAULT_DOMAIN_CONFIG = {
     "domains": [
@@ -243,20 +244,20 @@ def load_domain_names() -> list[str]:
     return [domain["name"] for domain in config.get("domains", [])]
 
 
-# Newsletter RSS feeds
-FEEDS = [
-    {"name": "ByteByteGo", "url": "https://blog.bytebytego.com/feed", "category": "architecture"},
-    {"name": "Platform Engineering Weekly", "url": "https://theplatformengineering.substack.com/feed", "category": "architecture"},
-    {"name": "The New Stack", "url": "https://thenewstack.io/feed/", "category": "architecture"},
-    {"name": "Techdirt", "url": "https://feeds.feedburner.com/techdirt", "category": "policy"},
-    {"name": "FinTech Futures", "url": "https://www.finextra.com/rss/headlines.aspx", "category": "fintech"},
-    {"name": "Fintech Takes", "url": "https://fintechtakes.com/feed", "category": "fintech"},
-    {"name": "The Neuron", "url": "https://www.theneuron.ai/feed", "category": "ai"},
-    {"name": "Fintech Finance News", "url": "https://ffnews.com/feed", "category": "fintech"},
-    {"name": "TechCrunch Fintech", "url": "https://techcrunch.com/tag/fintech/feed/", "category": "fintech"},
-    {"name": "Bank of Canada News", "url": "https://www.bankofcanada.ca/utility/news/feed/", "category": "policy"},
-    {"name": "Shopify Engineering", "url": "https://shopify.engineering/blog.atom", "category": "architecture"},
-]
+def load_feeds_config() -> list[dict]:
+    """Load newsletter RSS feed configuration from config/feeds.json.
+    
+    If the file doesn't exist, returns an empty list and logs a warning.
+    Each feed is expected to have 'name', 'url', and 'category' keys.
+    """
+    if not FEEDS_CONFIG_PATH.exists():
+        print(f"⚠️  Feeds config not found at {FEEDS_CONFIG_PATH}")
+        return []
+    return json.loads(FEEDS_CONFIG_PATH.read_text(encoding="utf-8"))
+
+
+# Newsletter RSS feeds (loaded from config/feeds.json)
+FEEDS = load_feeds_config()
 
 
 # ── Prompt loading ────────────────────────────────────────────────────────────

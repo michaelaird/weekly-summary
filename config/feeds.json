@@ -1,0 +1,57 @@
+[
+  {
+    "name": "ByteByteGo",
+    "url": "https://blog.bytebytego.com/feed",
+    "category": "architecture"
+  },
+  {
+    "name": "Platform Engineering Weekly",
+    "url": "https://theplatformengineering.substack.com/feed",
+    "category": "architecture"
+  },
+  {
+    "name": "The New Stack",
+    "url": "https://thenewstack.io/feed/",
+    "category": "architecture"
+  },
+  {
+    "name": "Techdirt",
+    "url": "https://feeds.feedburner.com/techdirt",
+    "category": "policy"
+  },
+  {
+    "name": "FinTech Futures",
+    "url": "https://www.finextra.com/rss/headlines.aspx",
+    "category": "fintech"
+  },
+  {
+    "name": "Fintech Takes",
+    "url": "https://fintechtakes.com/feed",
+    "category": "fintech"
+  },
+  {
+    "name": "The Neuron",
+    "url": "https://www.theneuron.ai/feed",
+    "category": "ai"
+  },
+  {
+    "name": "Fintech Finance News",
+    "url": "https://ffnews.com/feed",
+    "category": "fintech"
+  },
+  {
+    "name": "TechCrunch Fintech",
+    "url": "https://techcrunch.com/tag/fintech/feed/",
+    "category": "fintech"
+  },
+  {
+    "name": "Bank of Canada News",
+    "url": "https://www.bankofcanada.ca/utility/news/feed/",
+    "category": "policy"
+  },
+  {
+    "name": "Shopify Engineering",
+    "url": "https://shopify.engineering/blog.atom",
+    "category": "architecture"
+  }
+]
