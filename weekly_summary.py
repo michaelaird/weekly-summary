@@ -21,6 +21,7 @@ from jinja2 import Environment, FileSystemLoader
 from markupsafe import Markup
 
 from runtime_adapters import RuntimePolicy, build_anthropic_client, create_email_sender
+from model_client import ModelClient
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -448,6 +449,16 @@ class ArticleAnalyzer:
         self.runtime_policy = RuntimePolicy.from_environment()
         self.use_live_model = self.runtime_policy.should_send_email() if use_live_model is None else bool(use_live_model)
         self.live_model_available = self.use_live_model and self.runtime_policy.can_use_live_anthropic()
+        
+        # Create a reusable ModelClient for all API interactions
+        client = get_anthropic_runtime_client(live=self.live_model_available)
+        self.model_client = ModelClient(
+            client,
+            max_attempts=3,
+            initial_backoff_seconds=1.0,
+            write_debug_responses=True,
+            debug_dir=BASE_DIR / "debug",
+        )
 
     def should_use_live_model(self) -> bool:
         return bool(self.live_model_available)
@@ -496,48 +507,35 @@ class ArticleAnalyzer:
                 )
             return "\n".join(prompt)
 
-        client = get_anthropic_runtime_client(live=self.live_model_available)
-
         def _score_batch(batch: list[dict], batch_index: int) -> list[dict] | None:
             content = _build_prompt_for_batch(batch)
-            attempts = 3
-            backoff = 1.0
-            for attempt in range(1, attempts + 1):
-                try:
-                    response = client.messages.create(
-                        model=model_name,
-                        max_tokens=max_tokens,
-                        system="Score each article for relevance to the configured domains. Be strict and only award high scores when the article meaningfully intersects the domain.",
-                        messages=[{"role": "user", "content": content}],
-                    )
-
-                    text = "\n".join(block.text for block in response.content if getattr(block, "type", None) == "text")
-                    usage = getattr(response, "usage", None)
-                    if usage is not None:
-                        usage = {
-                            "input_tokens": getattr(usage, "input_tokens", None),
-                            "output_tokens": getattr(usage, "output_tokens", None),
-                        }
-                    record_model_usage(f"relevance_score_batch_{batch_index}", model_name, usage, max_tokens=max_tokens)
-                    write_debug_response_to_file(f"anthropic_relevance_batch_{batch_index}", text, stop_reason=getattr(response, "stop_reason", None), usage=usage)
-                    try:
-                        parsed = extract_json_array_from_text(text)
-                        return parsed
-                    except Exception as exc:
-                        print(f"  ✗ Malformed model response for batch {batch_index}: {exc}")
-                        return None
-
-                except Exception as exc:
-                    msg = str(exc).lower()
-                    if attempt < attempts and ("rate" in msg or "429" in msg or "throttle" in msg):
-                        print(f"  ⚠️ Rate-limited scoring batch {batch_index}, retrying in {backoff}s...")
-                        import time
-
-                        time.sleep(backoff)
-                        backoff *= 2
-                        continue
-                    print(f"  ✗ Error scoring batch {batch_index}: {exc}")
-                    return None
+            
+            # Use the deep ModelClient module for retry/backoff/rate-limit handling
+            response = self.model_client.call_model(
+                system="Score each article for relevance to the configured domains. Be strict and only award high scores when the article meaningfully intersects the domain.",
+                user_message=content,
+                model=model_name,
+                max_tokens=max_tokens,
+                label=f"relevance_score_batch_{batch_index}",
+            )
+            
+            if response is None:
+                return None
+            
+            # Record usage and attempt to parse the response
+            record_model_usage(
+                f"relevance_score_batch_{batch_index}",
+                model_name,
+                {"input_tokens": response.input_tokens, "output_tokens": response.output_tokens},
+                max_tokens=max_tokens,
+            )
+            
+            try:
+                parsed = extract_json_array_from_text(response.text)
+                return parsed
+            except Exception as exc:
+                print(f"  ✗ Malformed model response for batch {batch_index}: {exc}")
+                return None
 
         # Partition articles into batches
         batches: list[list[dict]] = [articles[i : i + batch_size] for i in range(0, len(articles), batch_size)]
@@ -597,8 +595,6 @@ class ArticleAnalyzer:
         system_prompt = render_prompt_template("system.txt", config=self.config)
         user_prompt_base = render_prompt_template("user.txt", config=self.config, previous_signals=load_signal_history())
 
-        client = get_anthropic_runtime_client(live=self.live_model_available)
-
         def _build_user_message(article: dict, idx: int) -> str:
             # Load article content (fallback to summary/title)
             fallback_text = article.get("summary") or article.get("title") or ""
@@ -639,64 +635,29 @@ class ArticleAnalyzer:
 
         # Per-article call with retry/backoff and rate-limit handling
         def _analyze_article(article: dict, idx: int) -> str:
-            attempts = 3
-            backoff = 1.0
             user_message = _build_user_message(article, idx)
-            for attempt in range(1, attempts + 1):
-                try:
-                    response = client.messages.create(
-                        model=model_name,
-                        max_tokens=max_tokens,
-                        system=system_prompt,
-                        messages=[{"role": "user", "content": user_message}],
-                    )
-                    usage = getattr(response, "usage", None)
-                    if usage is not None:
-                        usage = {"input_tokens": getattr(usage, "input_tokens", None), "output_tokens": getattr(usage, "output_tokens", None)}
-                    record_model_usage(f"deep_analysis_article_{idx}", model_name, usage, max_tokens=max_tokens)
-                    write_debug_response_to_file(f"anthropic_deep_article_{idx}", "\n".join(block.text for block in response.content if getattr(block, "type", None) == "text"), usage=usage)
-                    return "\n\n".join(block.text for block in response.content if getattr(block, "type", None) == "text").strip()
-
-                except ValueError as exc:
-                    text = str(exc)
-                    if "Streaming is required" in text and attempt < attempts:
-                        # Reduce token budget and retry once
-                        new_max = max(1000, max_tokens // 2)
-                        print(f"  ⚠️ Streaming required for article {idx}; retrying with max_tokens={new_max}")
-                        nonlocal_max_tokens = new_max
-                        # adjust local max_tokens for next attempt by rebinding the name used below
-                        # call the API again with smaller budget
-                        try:
-                            response = client.messages.create(
-                                model=model_name,
-                                max_tokens=new_max,
-                                system=system_prompt,
-                                messages=[{"role": "user", "content": user_message}],
-                            )
-                            usage = getattr(response, "usage", None)
-                            if usage is not None:
-                                usage = {"input_tokens": getattr(usage, "input_tokens", None), "output_tokens": getattr(usage, "output_tokens", None)}
-                            record_model_usage(f"deep_analysis_article_{idx}", model_name, usage, max_tokens=new_max)
-                            write_debug_response_to_file(f"anthropic_deep_article_{idx}_fallback", "\n".join(block.text for block in response.content if getattr(block, "type", None) == "text"), usage=usage)
-                            return "\n\n".join(block.text for block in response.content if getattr(block, "type", None) == "text").strip()
-                        except Exception as exc2:
-                            print(f"  ✗ Retry after streaming error failed for article {idx}: {exc2}")
-                            return ""
-                    else:
-                        print(f"  ✗ Deep analysis ValueError for article {idx}: {exc}")
-                        return ""
-
-                except Exception as exc:
-                    msg = str(exc).lower()
-                    if attempt < attempts and ("rate" in msg or "429" in msg or "throttle" in msg):
-                        import time
-
-                        print(f"  ⚠️ Rate-limited analyzing article {idx}, retrying in {backoff}s...")
-                        time.sleep(backoff)
-                        backoff *= 2
-                        continue
-                    print(f"  ✗ Error analyzing article {idx}: {exc}")
-                    return ""
+            
+            # Use the deep ModelClient module for retry/backoff/rate-limit handling
+            response = self.model_client.call_model(
+                system=system_prompt,
+                user_message=user_message,
+                model=model_name,
+                max_tokens=max_tokens,
+                label=f"deep_analysis_article_{idx}",
+            )
+            
+            if response is None:
+                return ""
+            
+            # Record usage
+            record_model_usage(
+                f"deep_analysis_article_{idx}",
+                model_name,
+                {"input_tokens": response.input_tokens, "output_tokens": response.output_tokens},
+                max_tokens=max_tokens,
+            )
+            
+            return response.text.strip()
 
         # Run analyses in bounded parallelism
         max_workers = min(3, max(1, len(articles)))
