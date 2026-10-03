@@ -172,6 +172,15 @@
     {{ body_html }}
   </div>
 
+  {% if architect_lens %}
+  <div class="architects-lens-section" style="max-width: 680px; margin: 24px auto 0; padding: 0 24px;">
+    <h2 style="color: #0f3a7d; margin: 0 0 16px 0; font-size: 18px; font-weight: 700; padding-bottom: 12px; border-bottom: 2px solid #e5e7eb;">🧠 Synthesis</h2>
+    <div class="architects-lens" style="background: #f0f9ff; border-left: 4px solid #0284c7; padding: 20px; margin: 16px 0; border-radius: 4px;">
+      {{ architect_lens }}
+    </div>
+  </div>
+  {% endif %}
+
   {% if model_usage %}
   <div class="stats" style="margin-top: 20px; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px 18px;">
     <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #475569; margin-bottom: 10px;">Model usage</div>

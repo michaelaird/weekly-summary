@@ -1143,7 +1143,6 @@ def build_email_html(body_md: str, run_date: str, architect_lens: str = "", mode
         )
         architect_lens_html = re.sub(r'>\s+<', '><', architect_lens_html)
         architect_lens_html = re.sub(r'\n\n+', '\n', architect_lens_html)
-        architect_lens_html = f'<div class="architects-lens">{architect_lens_html}</div>'
 
     relevance_html = ""
     if selected_articles:
@@ -1169,7 +1168,8 @@ def build_email_html(body_md: str, run_date: str, architect_lens: str = "", mode
     template = env.get_template("email.html")
     return template.render(
         run_date=run_date,
-        body_html=Markup(architect_lens_html + relevance_html + body_html),
+        body_html=Markup(relevance_html + body_html),
+        architect_lens=Markup(architect_lens_html),
         model_usage=model_usage or [],
     )
 
