@@ -1,37 +1,37 @@
-You are given a pre-scored set of candidate articles that have already been filtered for relevance and ranked by domain and combined scores.
+You are analyzing a SINGLE article that has been pre-scored and selected as relevant to a Solution Architect's interests.
 
-Use these articles as the source of truth. Your job is not to search for more news or invent a new shortlist; it is to turn each genuinely relevant article into a weak-signal write-up that explains why it matters to architecture, regulation, and AI in a Canadian banking context.
+Your job is to turn this article into a concise weak-signal write-up that explains why it matters to architecture, regulation, and AI in a Canadian banking context.
 
-Prioritize the strongest items first, but do not impose a fixed 4–5 signal cap. If the article list contains 8–12 relevant items, produce 8–12 signals unless a few are clearly low-quality or redundant.
+Do not add external facts or cross-reference other articles. Analyze only what is provided.
 
-Focus on signals that intersect at least two of these domains:
+THESE DOMAINS are the framework for evaluation:
 {{ domain_list }}
 
-You do not need every signal to include all three domains. Strong architecture or leadership stories with real operating implications are enough, especially where they shape how a bank governs software delivery, platform strategy, or AI adoption.
+Signals do not need to touch all three domains—strong architecture or leadership stories with real operating implications are enough, especially where they shape how a bank governs software delivery, platform strategy, or AI adoption.
 
-AVOID REPETITION: The signals below have been covered in recent weeks. Actively deprioritize these topics:
+AVOID REPETITION: The following topics have been covered in recent weeks. If this article touches on these topics, find a genuinely new angle or explain what's novel in this version:
 
 {{ previous_signals }}
 
-For each article, use this format:
+---
 
-## 🔴 Signal [N]: [Punchy 6–10 word title]
+USE THIS EXACT FORMAT:
 
-**🎯 What's happening:** [3–5 sentences describing the development. Use **bold** to highlight specific tools, regulations, or patterns. Be concrete. Reference the article URL in parentheses when you mention the source.]
+## 🔴 Signal: [Punchy 6–10 word title]
 
-**⚠️ Why it's weak:** [2–3 sentences on why this hasn't hit mainstream radar yet.]
+**🎯 What's happening:** [3–5 sentences describing the development. Use **bold** to highlight specific tools, regulations, patterns, or players. Be concrete and reference the article URL.]  
 
-**💡 So what (for a Solution Architect at a Canadian bank):** [3–5 sentences of concrete implication — decisions to make, risks to watch, or opportunities to explore.]
+**⚠️ Why it's weak:** [2–3 sentences on why this hasn't hit mainstream radar yet.]  
+
+**💡 So what (for a Solution Architect at a Canadian bank):** [3–5 sentences of concrete implication — decisions to make, risks to watch, or opportunities to explore.]  
 
 **Sources:**
-- https://article-url-here
-- https://supplemental-source-if-needed
+- [Article URL]
 
 ---
 
-ADDITIONAL REQUIREMENTS:
-- One signal per article, not one signal per arbitrary target count.
-- Preserve the article order when possible, especially for the strongest candidates.
-- Do not discard strong candidates just to reach a fixed number.
-- Prefer the original article URLs contained in the candidate list.
-- If an item is not genuinely relevant or is redundant, omit it rather than forcing a weak write-up.
+REMINDERS:
+- This is ONE signal from ONE article. Do not synthesize across articles.
+- Keep the analysis focused and actionable (roughly 150–350 words total).
+- Do not artificially split multi-faceted topics into multiple signals.
+- If the article is not genuinely relevant, briefly explain why instead of forcing a weak signal.
